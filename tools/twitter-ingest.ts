@@ -11,7 +11,7 @@
  *
  * Usage:
  *   npx tsx tools/twitter-ingest.ts "https://x.com/karpathy/status/123"
- *   npx tsx tools/twitter-ingest.ts --search "your research topic" --since 2026-03-01
+ *   npx tsx tools/twitter-ingest.ts --search "web agent continual adaptation" --since 2026-03-01
  *   npx tsx tools/twitter-ingest.ts --profile karpathy --limit 10
  *   npx tsx tools/twitter-ingest.ts --curated --since 2026-04-01
  *   npx tsx tools/twitter-ingest.ts --status

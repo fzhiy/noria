@@ -353,7 +353,7 @@ export async function assessRelevance(
 
 if (process.argv[1]?.endsWith("relevance-filter.ts") || process.argv[1]?.endsWith("relevance-filter.js")) {
   const title = process.argv[2] ?? "Test Paper Title";
-  const abstract = process.argv[3] ?? "This is a test abstract about your research topic.";
+  const abstract = process.argv[3] ?? "This is a test abstract about web agents and UI drift.";
   assessRelevance(title, abstract, {}, { skipSpecter: true }).then((r) => {
     console.log(JSON.stringify(r, null, 2));
   });

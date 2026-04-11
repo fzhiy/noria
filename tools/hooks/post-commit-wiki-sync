@@ -3,8 +3,8 @@
 # Only runs on feature/agent branch (where wiki work happens)
 # Only syncs if wiki/ files were changed in this commit
 
-REMOTE="${NORIA_REMOTE:-user@your-remote-host}"
-REMOTE_DIR="${NORIA_REMOTE_DIR:-/path/to/noria/}"
+REMOTE="user@your-server.example.com"
+REMOTE_DIR="/home/user/research/noria/"
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
 # Only sync on feature/agent branch

@@ -93,10 +93,10 @@ Track A discovers leads; Track B provides evidence. Track A→B promotion via `t
 Every pipeline step follows the progressive reading pattern:
 
 ```
-1. provewiki-reader --exists  (dedup check, ~10 tokens)
-2. provewiki-reader --brief   (RT relevance screen, ~200 tokens)
-3. provewiki-reader --head    (section structure, ~800 tokens)
-4. provewiki-reader --section (targeted read, variable)
+1. noria-reader --exists  (dedup check, ~10 tokens)
+2. noria-reader --brief   (RT relevance screen, ~200 tokens)
+3. noria-reader --head    (section structure, ~800 tokens)
+4. noria-reader --section (targeted read, variable)
 5. Full read only if needed   (last resort)
 ```
 
@@ -123,7 +123,7 @@ Every pipeline step follows the progressive reading pattern:
 
 | Component | Implementation | Status |
 |---|---|---|
-| Remote MCP Server | `tools/provewiki-mcp-server.py` via SSH tunnel | Operational |
+| Remote MCP Server | `tools/noria-mcp-server.py` via SSH tunnel | Operational |
 | Topic Bundle | `tools/kb-topic-bundle.ts` for external project queries | Operational |
 | Obsidian Vault | Wikilink pipe syntax, Juggl typed links, Dataview | Operational |
 | sigma.js Graph | `tools/kb-graph-export.ts` → standalone HTML | Operational |
@@ -148,7 +148,7 @@ Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 ### Readers (token-efficient, progressive)
 | Tool | Purpose |
 |---|---|
-| `provewiki-reader.ts` | Local progressive reader (7 modes: brief/head/section/triage/search/budget/exists) |
+| `noria-reader.ts` | Local progressive reader (7 modes: brief/head/section/triage/search/budget/exists) |
 | `deepxiv-reader.ts` | Cloud reader for 2.9M arXiv papers (zero LLM cost, 10K/day API) |
 
 ### Search & Ingestion
@@ -192,7 +192,7 @@ Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 ### Infrastructure
 | Tool | Purpose |
 |---|---|
-| `provewiki-mcp-server.py` | Remote MCP server (search + get + feedback + gap_scan + list_concepts + graph_neighbors) |
+| `noria-mcp-server.py` | Remote MCP server (search + get + feedback + gap_scan + list_concepts + graph_neighbors) |
 | `qmd-reindex.ts` | QMD search index management |
 | `serve-remote.sh` | SSH tunnel setup script |
 

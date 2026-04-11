@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-# WARNING: Scweet uses cookie-based authentication to access Twitter/X.
-# Users are responsible for complying with Twitter/X Terms of Service.
-# Consider using the official Twitter API v2 for production use.
-
 """Scweet bridge for twitter-ingest.ts — search and profile timeline scraping.
 
 Called as subprocess by TypeScript. Outputs JSON to stdout.

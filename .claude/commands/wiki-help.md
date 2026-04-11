@@ -118,7 +118,7 @@ Print this table:
    ```
 
 5. Recommend next action based on status:
-   - If synthesis/ is empty → "Ready for /kb-reflect (lint passes, recommend topic: a synthesis topic based on your research focus)"
+   - If synthesis/ is empty → "Ready for /kb-reflect (lint passes, recommend topic: Continual Adaptation Methods for Web Agents)"
    - If lint fails → "Run /kb-lint --fix first"
    - If new raw files exist → "Run /kb-compile to process new sources"
    - Otherwise → "Wiki is healthy. Consider /kb-sync to expand sources."

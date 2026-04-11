@@ -1,9 +1,14 @@
 ---
+
 name: kb-deepen
 description: Read local PDF to deepen a wiki source page beyond abstract-level. Enriches summary, adds method details, key results, and upgrades citation locators from abstract to sec.X.
-argument-hint: <citekey> [--batch <N>] [--list]
+argument-hint: <citekey> [--batch <N>] [--list] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
+
+> **Effort**: Default `extended`. See `shared/effort-contract.md` for all tiers.
+
+
 
 # KB Deepen
 
@@ -13,8 +18,8 @@ Deepen wiki source pages by reading the original paper PDF from local Zotero sto
 
 ## Constants
 
-- **ZOTERO_DB**: `$ZOTERO_DB (configure in .env)`
-- **ZOTERO_ATTACHMENT_BASE**: `$ZOTERO_ATTACHMENT_BASE (configure in .env)`
+- **ZOTERO_DB**: `/path/to/your/zotero.sqlite`
+- **ZOTERO_ATTACHMENT_BASE**: `/path/to/your/zotero/storage/`
 - Zotero stores linked attachments with `attachments:` prefix in DB; replace with ZOTERO_ATTACHMENT_BASE to get full WSL2 path
 - **MAX_PAGES_PER_READ**: 15 (skip References/Appendix to save tokens)
 - **MAX_BATCH**: 5 (papers per invocation)

@@ -19,7 +19,7 @@
 
 set -e
 
-REMOTE="${1:-user@your-remote-host}"
+REMOTE="${1:-user@your-server.example.com}"
 PORT="${2:-3849}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WIKI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"

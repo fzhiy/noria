@@ -27,7 +27,7 @@ Search arXiv for papers and import them into `raw/arxiv/`. Invoke when the first
 ```
 /kb-sync arxiv "web agent continual learning" --limit 10
 /kb-sync arxiv "LLM agent benchmark" --limit 5 --category cs.AI
-/kb-sync arxiv "your search query" --since 2025-01-01
+/kb-sync arxiv "UI drift agent" --since 2025-01-01
 /kb-sync arxiv --dry-run "self-evolving agent"
 ```
 
@@ -49,7 +49,7 @@ Search published venue papers (IEEE, ACM, Springer, etc.) and import them into `
 ```
 /kb-sync semantic-scholar "web agent continual learning" --limit 10
 /kb-sync s2 "LLM agent benchmark" --year 2024- --min-citations 10
-/kb-sync s2 "example query" --type conference
+/kb-sync s2 "UI drift" --type conference
 /kb-sync s2 --paper "DOI:10.1109/..."
 /kb-sync s2 --related "ARXIV:2401.12345" --limit 5
 /kb-sync s2 --citations "ARXIV:2401.12345" --limit 10

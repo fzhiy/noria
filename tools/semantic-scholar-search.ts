@@ -8,7 +8,7 @@
  * Usage:
  *   npx tsx tools/semantic-scholar-search.ts --query "web agent continual learning" --limit 10
  *   npx tsx tools/semantic-scholar-search.ts --query "LLM agent benchmark" --year 2024-
- *   npx tsx tools/semantic-scholar-search.ts --query "example query" --min-citations 10
+ *   npx tsx tools/semantic-scholar-search.ts --query "UI drift" --min-citations 10
  *   npx tsx tools/semantic-scholar-search.ts --query "continual GUI learning" --type conference
  *   npx tsx tools/semantic-scholar-search.ts --paper "DOI:10.1109/..."
  *   npx tsx tools/semantic-scholar-search.ts --paper "ARXIV:2401.12345"

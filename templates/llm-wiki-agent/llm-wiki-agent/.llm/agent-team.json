@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "controlPlane": {
+    "agent": "claude_max",
+    "policy": "human-approved-semi-auto"
+  },
+  "agents": {
+    "claude_max": {
+      "provider": "anthropic",
+      "role": "orchestrator"
+    },
+    "codex_primary": {
+      "provider": "openai",
+      "role": "reviewer-implementer"
+    },
+    "gemini_pro": {
+      "provider": "google",
+      "role": "analysis-worker"
+    }
+  }
+}

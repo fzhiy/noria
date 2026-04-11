@@ -7,7 +7,7 @@ allowed-tools: Bash(*), Read, Grep, Glob
 
 # KB Trending: Research Topic Hot Paper Discovery
 
-Discover trending arXiv papers relevant to "your research topic" using DeepXiv social signal API + local keyword filtering.
+Discover trending arXiv papers relevant to "continual adaptation of web agents under UI/workflow drifts" using DeepXiv social signal API + local keyword filtering.
 
 ## Context: $ARGUMENTS
 

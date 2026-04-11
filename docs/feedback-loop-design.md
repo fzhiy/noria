@@ -81,7 +81,7 @@ This is already governance in CLAUDE.md but the Hermes analogy reinforces why: i
 │                   Remote Research Machine                │
 │  Claude Code / Codex queries NORIA via MCP          │
 │                                                         │
-│  search("example query") → wiki results                      │
+│  search("ui drift") → wiki results                      │
 │  submit_feedback(gap, ...) → append to outputs/queries/ │
 └──────────────┬──────────────────────────────────────────┘
                │ SSH reverse tunnel (port 3849)

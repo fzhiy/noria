@@ -5,7 +5,7 @@
  * Usage:
  *   npx tsx tools/arxiv-search.ts --query "web agent continual learning" --limit 10
  *   npx tsx tools/arxiv-search.ts --query "LLM agent benchmark" --limit 5 --category cs.AI
- *   npx tsx tools/arxiv-search.ts --query "your search query" --since 2025-01-01
+ *   npx tsx tools/arxiv-search.ts --query "UI drift agent" --since 2025-01-01
  *   npx tsx tools/arxiv-search.ts --dry-run --query "self-evolving agent"
  *   npx tsx tools/arxiv-search.ts --query "concept drift" --no-filter  # skip relevance filter
  */

@@ -1,9 +1,14 @@
 ---
+
 name: kb-expand
 description: "Close the flywheel: route gap scan results to sync → compile → lint. Automates gap → expansion → retrieval loop."
-argument-hint: [--dry-run] [--type demand|depth|structural|frontier] [--limit N]
+argument-hint: [--dry-run] [--type demand|depth|structural|frontier] [--limit N] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
+
+> **Effort**: Default `standard`. See `shared/effort-contract.md` for all tiers.
+
+
 
 # KB Expand: Gap → Expansion Automation
 

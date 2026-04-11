@@ -6,7 +6,7 @@ allowed-tools: ""
 
 # NORIA Knowledge Service
 
-A provenance-tracked academic knowledge base. Configure your research topic in `research-topic-config.json`.
+A provenance-tracked academic knowledge base covering **continual adaptation of web agents under UI drifts and workflow drifts**. 116 source pages, 32 concepts, 5 syntheses, 1400+ citations.
 
 ## Local Mirror (preferred)
 
@@ -22,7 +22,7 @@ noria/synthesis/*.md    # 5 thematic synthesis articles
 **Quick start with local files:**
 ```
 Read noria/index.md                    # Browse topics
-Grep "example query" noria/sources/         # Find relevant papers
+Grep "ui drift" noria/sources/         # Find relevant papers
 Read noria/concepts/ui-drift.md        # Understand a concept
 ```
 

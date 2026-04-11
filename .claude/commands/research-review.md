@@ -1,9 +1,12 @@
 ---
 name: research-review
 description: Get an external deep review of the wiki architecture, workflow, or research artifacts. Use when you want critical feedback from GPT with maximum reasoning depth.
-argument-hint: [topic-or-scope]
+argument-hint: [topic-or-scope] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit
 ---
+
+> **Effort**: Default `extended`. See `shared/effort-contract.md` for all tiers.
+
 
 # Research Review
 

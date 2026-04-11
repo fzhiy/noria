@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "mcpServers": {},
+  "shared": {
+    "claudeCommandsDir": ".llm/shared/claude-commands",
+    "codexSkillsDir": ".llm/shared/codex-skills"
+  }
+}

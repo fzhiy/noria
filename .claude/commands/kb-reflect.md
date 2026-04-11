@@ -1,9 +1,14 @@
 ---
+
 name: kb-reflect
 description: Generate synthesis articles from multiple source-derived pages after lint passes. Use when creating cross-cutting wiki synthesis.
-argument-hint: [optional: --apply]
+argument-hint: [optional: --apply] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
+
+> **Effort**: Default `heavy`. See `shared/effort-contract.md` for all tiers.
+
+
 
 # KB Reflect
 

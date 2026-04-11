@@ -1,6 +1,6 @@
 #!/usr/bin/env npx tsx
 /**
- * WeChat article ingestion for NORIA via we-mp-rss API.
+ * WeChat 公众号 content ingestion for NORIA via we-mp-rss API.
  *
  * Requires we-mp-rss running at localhost:8001 (see tools/wechat/docker-compose.yaml).
  *
@@ -13,7 +13,7 @@
  *
  * Usage:
  *   npx tsx tools/wechat-ingest.ts --poll --since 2026-04-01
- *   npx tsx tools/wechat-ingest.ts --subscribe "example-account"
+ *   npx tsx tools/wechat-ingest.ts --subscribe "机器之心"
  *   npx tsx tools/wechat-ingest.ts --list
  *   npx tsx tools/wechat-ingest.ts --status
  *   npx tsx tools/wechat-ingest.ts --poll --dry-run
@@ -38,7 +38,7 @@ if (existsSync(envPath)) {
 
 const WE_MP_RSS_URL = process.env.WE_MP_RSS_URL ?? "http://localhost:8001";
 const WE_MP_RSS_USER = process.env.WE_MP_RSS_USER ?? "admin";
-const WE_MP_RSS_PASS = process.env.WE_MP_RSS_PASS ?? "change-me";
+const WE_MP_RSS_PASS = process.env.WE_MP_RSS_PASS ?? "noria2026";
 const API_PREFIX = "/api/v1/wx";
 
 // ── API Client ─────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ The server exposes three MCP tools:
 
 | Tool | Description |
 |------|-------------|
-| `search` | Keyword search across all wiki sources, concepts, and syntheses |
+| `search` | Keyword search across 91+ sources, 32 concepts, 3 syntheses |
 | `get` | Retrieve full wiki page by relative path |
 | `submit_feedback` | Append-only feedback ingestion (gap/accuracy/insight) |
 
@@ -42,14 +42,14 @@ Feedback is `query-derived` — it NEVER enters `wiki/` directly. See
 ### On the wiki host (WSL2)
 
 ```bash
-cd /path/to/noria
+cd /home/fy/projects/llm-wiki/.worktrees/feature-agent
 
 # Start server + SSH reverse tunnel
 ./tools/serve-remote.sh [remote-user@host] [port]
 
 # Or manually:
 python3 tools/noria-mcp-server.py 3849 wiki &
-ssh -R 3849:localhost:3849 -N -o ServerAliveInterval=60 user@your-remote-host
+ssh -R 3849:localhost:3849 -N -o ServerAliveInterval=60 user@your-server.example.com
 ```
 
 ### On the remote machine
@@ -83,7 +83,7 @@ curl -s http://localhost:3849/
 # Test search
 curl -s -X POST http://localhost:3849/ \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search","arguments":{"query":"example query"}}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search","arguments":{"query":"ui drift"}}}'
 
 # Test feedback submission
 curl -s -X POST http://localhost:3849/ \

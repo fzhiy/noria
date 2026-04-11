@@ -1,8 +1,8 @@
 # NORIA
 
-**Networked Origin-traced Research Iteration for Agents** — named after the [noria](https://en.wikipedia.org/wiki/Noria), a self-driven water wheel that lifts water from rivers to aqueducts. NORIA lifts scattered literature into structured, traceable knowledge that agents can consume.
+**Agent-first academic research knowledge service** — a knowledge flywheel for CS/AI researchers.
 
-An agent-first academic research knowledge service with a self-reinforcing knowledge flywheel for CS/AI researchers.
+NORIA transforms scattered literature into structured, provenance-tracked, citation-linked knowledge. It auto-discovers papers, compiles them into an interlinked wiki, detects knowledge gaps, and serves the results via MCP to external agents.
 
 ## Key Features
 
@@ -24,43 +24,6 @@ Raw Sources (user owns)  →  LLM Engine (Claude Code)  →  Wiki (LLM maintains
                                                          →  MCP Service (remote agents)
 ```
 
-### Workflow
-
-```mermaid
-flowchart LR
-  subgraph Ingest["① Ingest"]
-    sync["/kb-sync\n(discover)"] --> compile["/kb-compile\n(raw → wiki)"]
-    compile --> lint["/kb-lint\n(8 checks)"]
-  end
-
-  subgraph Intelligence["② Intelligence"]
-    reflect["/kb-reflect\n(synthesis)"] --> deepen["/kb-deepen\n(enrich PDF)"]
-    deepen --> discover["/kb-discover\n(cross-paper)"]
-  end
-
-  subgraph Flywheel["③ Knowledge Flywheel"]
-    mcp["MCP Service\n9 tools"] --> triage["/kb-triage\n(feedback → signal)"]
-    triage --> gap["/kb-gap-scan\n(detect gaps)"]
-    gap --> expand["/kb-expand\n(auto-route)"]
-  end
-
-  lint --> reflect
-  discover --> mcp
-  expand --> sync
-
-  agents(["External Agents"]) <--> mcp
-
-  style Ingest fill:#e8f4f8,stroke:#4a90d9
-  style Intelligence fill:#e8f8e8,stroke:#50b848
-  style Flywheel fill:#fff3e8,stroke:#f5834b
-```
-
-| Phase | Commands | What happens |
-|-------|----------|-------------|
-| **① Ingest** | `/kb-sync` → `/kb-compile` → `/kb-lint` | Papers discovered, compiled to wiki, quality-gated |
-| **② Intelligence** | `/kb-reflect` → `/kb-deepen` → `/kb-discover` | Synthesis written, PDFs enriched, cross-paper insights found |
-| **③ Flywheel** | MCP → `/kb-triage` → `/kb-gap-scan` → `/kb-expand` | Feedback drives gap detection, gaps auto-route back to ① |
-
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design, directory structure, provenance model, and tool inventory.
 
 ## Quick Start
@@ -75,8 +38,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design, directory str
 ### Setup
 
 ```bash
-git clone git@github.com:fzhiy/noria.git
-cd noria
+git clone https://github.com/your-username/llm-wiki.git
+cd llm-wiki
 
 # Start working with Claude Code
 claude
@@ -117,10 +80,10 @@ python3 tools/noria-mcp-server.py 3849
 
 | Directory | Content | Count |
 |-----------|---------|-------|
-| `wiki/sources/` | Paper summaries with bibliographic metadata | — (starts empty) |
-| `wiki/concepts/` | Topic articles with wikilinks | — (starts empty) |
-| `wiki/synthesis/` | Cross-cutting thematic analyses | — (starts empty) |
-| `wiki/entities/` | Lab/researcher profiles | — (starts empty) |
+| `wiki/sources/` | Paper summaries with bibliographic metadata | 142 |
+| `wiki/concepts/` | Topic articles with wikilinks | 32 |
+| `wiki/synthesis/` | Cross-cutting thematic analyses | 12 |
+| `wiki/entities/` | Lab/researcher profiles | 2 |
 | `raw/` | User-owned source inputs (never modified by LLM) | — |
 | `outputs/` | Generated artifacts (never fed back into wiki) | — |
 
@@ -154,25 +117,8 @@ python3 tools/noria-mcp-server.py 3849
 
 ## Acknowledgments
 
-NORIA builds on the shoulders of these projects and services:
-
-- **[Karpathy llm-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** — the original LLM Wiki pattern that inspired this project's core architecture
-- **[Claude Code](https://claude.ai/claude-code)** (Anthropic) — the AI agent runtime that powers NORIA's multi-model orchestration
-- **[Semantic Scholar API](https://api.semanticscholar.org/)** (Allen AI) — academic paper search, citation data, and venue metadata
-- **[DeepXiv](https://github.com/DeepXiv/deepxiv_sdk)** — cloud API for progressive arXiv paper reading (zero LLM cost)
-- **[Obsidian](https://obsidian.md/)** — the knowledge visualization frontend, with plugins: [Juggl](https://juggl.io/), [Dataview](https://github.com/blacksmithgu/obsidian-dataview), [Supercharged Links](https://github.com/mdelobelle/metadatamenu)
-- **[QMD](https://github.com/nicholasgasior/qmd)** — local BM25 + vector search engine for wiki content
-- **[Scweet](https://github.com/Altimis/Scweet)** — Twitter/X data collection (users must comply with X/Twitter ToS)
-- **[Hermes-Agent](https://github.com/NousResearch/hermes-agent)** (NousResearch) — inspiration for the feedback loop design pattern
-- **[OpenAI Codex CLI](https://github.com/openai/codex)** — cross-model adversarial review via GPT-5.4
-- **[Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — inspiration for autonomous research loop design
-- **[llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)** — reference implementation for LLM-powered knowledge base architecture
-
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Extends the [Karpathy llm-wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) with provenance tracking, multi-model adversarial review, progressive PDF reading, and dual-track information architecture.
 
 ## License
 
-[MIT](LICENSE)
+MIT

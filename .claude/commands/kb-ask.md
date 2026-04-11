@@ -1,9 +1,14 @@
 ---
+
 name: kb-ask
 description: Answer questions from the wiki by routing through index.md and source pages. Use when retrieving knowledge from the KB.
-argument-hint: [required: question]
+argument-hint: [required: question] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Read, Write, Edit, Grep, Glob
 ---
+
+> **Effort**: Default `standard`. See `shared/effort-contract.md` for all tiers.
+
+
 
 # KB Ask
 

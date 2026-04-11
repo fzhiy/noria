@@ -4,7 +4,10 @@
 
 ## Core Infrastructure
 
+- `claude-hud` is wired through `.claude/settings.local.json` as the Claude Code status line.
 - `agent-deck` is available as the local skill at `.claude/skills/agent-deck/SKILL.md` and the repo-local binary in `.codex-tools/bin/agent-deck`.
+- ARIS-style review tooling now includes `/research-lit`, `/research-review`, `/gpt-nightmare-review`, `/mermaid-diagram`, and `/meta-optimize`.
+- ARIS meta-optimization lives in `tools/meta_opt/`, `.aris/meta/`, and the `/meta-optimize` command.
 - Direct Codex CLI review is wrapped by `tools/review/run_codex_exec.js` for repo-local `nightmare` reviews.
 
 ## KB Workflow Commands
@@ -19,7 +22,7 @@ The KB workflow commands are `/kb-sync`, `/kb-ingest`, `/kb-compile`, `/kb-lint`
 - **Venue verification**: `tools/venue-verify.ts` verifies top-conf/top-journal venue claims against S2 API + DBLP API. Supports `<citekey>`, `--batch`, `--stats`, `--dry-run`. Unverified papers get manual check URLs (OpenReview/ACL Anthology/IEEE Xplore). Integrated into kb-compile and kb-deepen workflows.
 - **Twitter/X ingest**: `tools/twitter-ingest.ts` + `tools/twitter-scweet-bridge.py`. Scweet for keyword search/profile scraping (dedicated account), xcancel for URL resolution. 3-layer quality filter (author authority, content signals, engagement). Outputs to `raw/twitter/`. Config in `tools/twitter-curated-accounts.json`. **Note**: Twitter content must use `provenance: social-lead` when compiled to wiki/sources/. Never `source-derived`.
 - **GitHub search**: `tools/github-search.ts` fetches official paper repos, benchmark implementations, and tagged releases via GitHub REST API. Narrow allowlist design: `--repo OWNER/REPO` for specific repos, `--search "query" --min-stars N` for filtered search, `--releases OWNER/REPO` for release notes. Outputs to `raw/github/`. No auth required for public reads (60 req/hr); set `GITHUB_TOKEN` for 5000 req/hr. GitHub content compiles as `provenance: social-lead` unless the repo IS the paper's official artifact (then `source-derived` is acceptable with the paper citekey in `sources:`).
-- **WeChat ingest**: `tools/wechat-ingest.ts` polls we-mp-rss API (Docker at localhost:8001) for WeChat Official Account articles. Modes: `--poll` (fetch new articles), `--subscribe <name>`, `--list`, `--search`, `--status`. 3-layer quality filter: account allowlist + keyword match + link detection (arXiv/DOI/GitHub). Setup: `cd tools/wechat && docker compose up -d`, then scan WeChat Reading QR at `http://localhost:8001/`. Outputs to `raw/wechat/`. Compiles as `provenance: social-lead`.
+- **WeChat ingest**: `tools/wechat-ingest.ts` polls we-mp-rss API (Docker at localhost:8001) for WeChat公众号 articles. Modes: `--poll` (fetch new articles), `--subscribe <name>`, `--list`, `--search`, `--status`. 3-layer quality filter: account allowlist + keyword match + link detection (arXiv/DOI/GitHub). Setup: `cd tools/wechat && docker compose up -d`, then scan WeChat Reading QR at `http://localhost:8001/`. Outputs to `raw/wechat/`. Compiles as `provenance: social-lead`.
 
 ## Knowledge Tools
 

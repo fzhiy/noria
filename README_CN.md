@@ -1,8 +1,8 @@
 # NORIA
 
-**Networked Origin-traced Research Iteration for Agents** — 得名于 [Noria](https://zh.wikipedia.org/wiki/%E8%AF%BA%E9%87%8C%E4%BA%9A%E6%B0%B4%E8%BD%AE)（诺里亚水轮），一种自驱动的水轮，将河水提升至高处渠道。NORIA 将分散的文献提升为结构化、可追溯、可被 agent 消费的精炼知识。
+**Agent-first 学术研究知识服务** — 面向 CS/AI 研究者的知识飞轮。
 
-面向 CS/AI 研究者的 Agent-first 学术研究知识服务，内置自增强的知识飞轮。
+NORIA 将分散的文献转化为结构化、带来源追溯、引用链接的知识体系。自动发现论文、编译为互联 wiki、检测知识缺口，并通过 MCP 协议向外部 agent 提供知识服务。
 
 ## 核心特性
 
@@ -24,43 +24,6 @@
                                                        →  MCP 服务（远程 agent）
 ```
 
-### 工作流
-
-```mermaid
-flowchart LR
-  subgraph Ingest["① 入库"]
-    sync["/kb-sync\n(发现论文)"] --> compile["/kb-compile\n(raw → wiki)"]
-    compile --> lint["/kb-lint\n(8 项检查)"]
-  end
-
-  subgraph Intelligence["② 智能"]
-    reflect["/kb-reflect\n(综合分析)"] --> deepen["/kb-deepen\n(PDF 深化)"]
-    deepen --> discover["/kb-discover\n(跨论文洞察)"]
-  end
-
-  subgraph Flywheel["③ 知识飞轮"]
-    mcp["MCP 知识服务\n9 个工具"] --> triage["/kb-triage\n(反馈 → 信号)"]
-    triage --> gap["/kb-gap-scan\n(检测缺口)"]
-    gap --> expand["/kb-expand\n(自动路由)"]
-  end
-
-  lint --> reflect
-  discover --> mcp
-  expand --> sync
-
-  agents(["外部 Agent"]) <--> mcp
-
-  style Ingest fill:#e8f4f8,stroke:#4a90d9
-  style Intelligence fill:#e8f8e8,stroke:#50b848
-  style Flywheel fill:#fff3e8,stroke:#f5834b
-```
-
-| 阶段 | 命令 | 说明 |
-|------|------|------|
-| **① 入库** | `/kb-sync` → `/kb-compile` → `/kb-lint` | 发现论文、编译到 wiki、质量门控 |
-| **② 智能** | `/kb-reflect` → `/kb-deepen` → `/kb-discover` | 撰写综合、PDF 深化、跨论文洞察 |
-| **③ 飞轮** | MCP → `/kb-triage` → `/kb-gap-scan` → `/kb-expand` | 反馈驱动缺口检测，缺口自动路由回 ① |
-
 完整系统设计参见 [ARCHITECTURE.md](ARCHITECTURE.md)。
 
 ## 快速开始
@@ -75,8 +38,8 @@ flowchart LR
 ### 使用
 
 ```bash
-git clone git@github.com:fzhiy/noria.git
-cd noria
+git clone https://github.com/your-username/llm-wiki.git
+cd llm-wiki
 
 # 启动 Claude Code
 claude
@@ -117,10 +80,10 @@ python3 tools/noria-mcp-server.py 3849
 
 | 目录 | 内容 | 数量 |
 |------|------|------|
-| `wiki/sources/` | 论文摘要 + 完整书目元数据 | — (初始为空) |
-| `wiki/concepts/` | 主题文章 + wikilinks | — (初始为空) |
-| `wiki/synthesis/` | 跨论文主题分析 | — (初始为空) |
-| `wiki/entities/` | 实验室/研究者档案 | — (初始为空) |
+| `wiki/sources/` | 论文摘要 + 完整书目元数据 | 142 |
+| `wiki/concepts/` | 主题文章 + wikilinks | 32 |
+| `wiki/synthesis/` | 跨论文主题分析 | 12 |
+| `wiki/entities/` | 实验室/研究者档案 | 2 |
 | `raw/` | 用户拥有的原始输入（LLM 不修改） | — |
 | `outputs/` | 生成的产物（不回流到 wiki） | — |
 
@@ -154,25 +117,8 @@ python3 tools/noria-mcp-server.py 3849
 
 ## 致谢
 
-NORIA 构建于以下项目和服务之上：
-
-- **[Karpathy llm-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** — 启发本项目核心架构的 LLM Wiki 模式
-- **[Claude Code](https://claude.ai/claude-code)** (Anthropic) — 驱动 NORIA 多模型编排的 AI agent 运行时
-- **[Semantic Scholar API](https://api.semanticscholar.org/)** (Allen AI) — 学术论文搜索、引用数据、会议元数据
-- **[DeepXiv](https://github.com/DeepXiv/deepxiv_sdk)** — arXiv 论文渐进式云端读取 API（零 LLM 成本）
-- **[Obsidian](https://obsidian.md/)** — 知识可视化前端，插件：[Juggl](https://juggl.io/)、[Dataview](https://github.com/blacksmithgu/obsidian-dataview)、[Supercharged Links](https://github.com/mdelobelle/metadatamenu)
-- **[QMD](https://github.com/nicholasgasior/qmd)** — 本地 BM25 + 向量搜索引擎
-- **[Scweet](https://github.com/Altimis/Scweet)** — Twitter/X 数据采集（用户需自行遵守 X/Twitter 服务条款）
-- **[Hermes-Agent](https://github.com/NousResearch/hermes-agent)** (NousResearch) — 反馈闭环设计模式的灵感来源
-- **[OpenAI Codex CLI](https://github.com/openai/codex)** — 通过 GPT-5.4 进行跨模型对抗性审查
-- **[Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — 自主研究循环设计的灵感来源
-- **[llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)** — LLM 知识库架构参考实现
-
-
-## 贡献
-
-参见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+扩展自 [Karpathy llm-wiki 模式](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)，增加了来源追溯、多模型对抗性审查、渐进式 PDF 读取和双轨信息架构。
 
 ## 许可证
 
-[MIT](LICENSE)
+MIT

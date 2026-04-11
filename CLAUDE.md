@@ -69,3 +69,4 @@ Key rules:
 - Search: S2, arXiv, GitHub, Twitter, WeChat tools in `tools/`
 - Review: `/gpt-nightmare-review`, Codex MCP
 - Agent team config: `.llm/agent-team.json`
+- **Effort tiers**: 5-level scaling (lite → beast). See `.claude/commands/shared/effort-contract.md`

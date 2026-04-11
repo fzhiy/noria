@@ -5,7 +5,7 @@
 
 ## What This Repo Is
 
-NORIA is a **provenance-first academic knowledge base** for "your research topic (configure in research-topic-config.json)". It is NOT a general-purpose wiki or code project.
+NORIA is a **provenance-first academic knowledge base** for "continual adaptation of web agents under UI/workflow drifts". It is NOT a general-purpose wiki or code project.
 
 ## Your Role (Codex/GPT)
 
@@ -45,7 +45,7 @@ Your job: independently verify Claude's claims by reading actual files. Do NOT t
 ## Key Files to Read First
 
 - `CLAUDE.md` — Lean agent instructions (~71 lines). Full schema: `schema.md`
-- `wiki/index.md` — KB index (master navigation for all wiki pages)
+- `wiki/index.md` — KB index (129 sources, 32 concepts, 7 syntheses)
 - `log.md` — Operation history
 - `tools/kb-lint.ts` — The 7-check deterministic linter
 - `.kb/manifest.json` — Compilation state tracker

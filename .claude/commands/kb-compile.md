@@ -1,9 +1,14 @@
 ---
+
 name: kb-compile
 description: Compile unprocessed raw/ files into wiki/sources/ and wiki/concepts/. Updates index.md. Core knowledge pipeline.
-argument-hint: [optional: specific file in raw/ to compile]
+argument-hint: [optional: specific file in raw/ to compile] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
+
+> **Effort**: Default `standard`. See `shared/effort-contract.md` for all tiers.
+
+
 
 # KB Compile: raw/ → wiki/
 
