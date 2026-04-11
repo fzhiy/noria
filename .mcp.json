@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "wiki-search": {
+      "command": "qmd",
+      "args": [
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}

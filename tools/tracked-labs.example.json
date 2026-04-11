@@ -1,0 +1,10 @@
+{
+  "_comment": "Tracked labs and key researchers for NORIA. Add S2 author IDs for automatic publication monitoring.",
+  "labs": [
+    {
+      "name": "Example Lab",
+      "s2_author_ids": ["12345678"],
+      "keywords": ["research-area"]
+    }
+  ]
+}

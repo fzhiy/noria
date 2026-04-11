@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "mcpServers": {
+    "wiki-search": {
+      "command": "qmd",
+      "args": ["mcp"],
+      "description": "Search wiki knowledge base via QMD hybrid search (BM25 + vector + HyDE). Exposes query, get, multi_get, and status tools over 100 indexed wiki pages.",
+      "transport": "stdio",
+      "httpFallback": {
+        "command": "qmd",
+        "args": ["mcp", "--http", "--port", "3847"],
+        "endpoint": "http://localhost:3847/mcp"
+      }
+    }
+  },
+  "shared": {
+    "claudeCommandsDir": ".llm/shared/claude-commands",
+    "codexSkillsDir": ".llm/shared/codex-skills"
+  }
+}

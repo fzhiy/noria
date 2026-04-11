@@ -1,0 +1,20 @@
+services:
+  we-mp-rss:
+    image: ghcr.io/rachelos/we-mp-rss:latest
+    container_name: we-mp-rss
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DB=sqlite:///data/we_mp_rss.db
+      - USERNAME=admin
+      - PASSWORD=noria2026
+      - TZ=Europe/London
+      - GATHER_CONTENT=True
+      - EXPORT_MARKDOWN=True
+      - EXPORT_PDF=False
+      - ENABLE_JOB=True
+      - MAX_PAGE=5
+      - THREADS=2
+    volumes:
+      - ./data:/app/data

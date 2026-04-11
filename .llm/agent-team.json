@@ -1,0 +1,88 @@
+{
+  "version": 2,
+  "controlPlane": {
+    "agent": "claude_opus",
+    "model": "claude-opus-4-6",
+    "policy": "human-approved-semi-auto"
+  },
+  "agents": {
+    "claude_opus": {
+      "provider": "anthropic",
+      "model": "claude-opus-4-6",
+      "role": "orchestrator",
+      "note": "Main session. Architecture, synthesis, complex planning."
+    },
+    "claude_sonnet": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-6",
+      "role": "worker",
+      "note": "Compile, search, code writing. Default subagent via CLAUDE_CODE_SUBAGENT_MODEL."
+    },
+    "claude_haiku": {
+      "provider": "anthropic",
+      "model": "claude-haiku-4-5-20251001",
+      "role": "triage",
+      "note": "Lint, exists-check, triage, simple reads. Cheapest model."
+    },
+    "codex_gpt54": {
+      "provider": "openai",
+      "model": "gpt-5.4",
+      "role": "reviewer",
+      "note": "Adversarial review via mcp__codex__codex. Cross-model diversity."
+    }
+  },
+  "taskRouting": {
+    "lint": {
+      "lead": "claude_haiku",
+      "agentParam": "model: \"haiku\"",
+      "note": "Deterministic checks, no reasoning needed"
+    },
+    "triage": {
+      "lead": "claude_haiku",
+      "agentParam": "model: \"haiku\"",
+      "note": "exists-check, file triage, simple reads"
+    },
+    "compile": {
+      "lead": "claude_sonnet",
+      "agentParam": "model: \"sonnet\"",
+      "parallel": true,
+      "maxWorkers": 3,
+      "note": "Routine extraction. Parallelize per source file."
+    },
+    "search": {
+      "lead": "claude_sonnet",
+      "agentParam": "model: \"sonnet\"",
+      "note": "Literature search, code exploration"
+    },
+    "deepen": {
+      "lead": "claude_sonnet",
+      "agentParam": "model: \"sonnet\"",
+      "note": "PDF reading and section extraction"
+    },
+    "reflect": {
+      "lead": "claude_opus",
+      "agentParam": "model: \"opus\"",
+      "note": "Cross-paper synthesis requires deep reasoning"
+    },
+    "review": {
+      "lead": "codex_gpt54",
+      "tool": "mcp__codex__codex",
+      "note": "Nightmare review. Cross-model adversarial."
+    },
+    "planning": {
+      "lead": "claude_opus",
+      "note": "Architecture decisions, task decomposition"
+    }
+  },
+  "rules": {
+    "finalWikiWriter": "claude_opus",
+    "defaultSubagentModel": "claude-sonnet-4-6",
+    "lintGateBeforeReflect": true,
+    "queryDerivedNeverFeedsWiki": true,
+    "enforcementLayers": [
+      "CLAUDE.md model routing table (advisory, high compliance)",
+      "CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-4-6 (env var, hard default)",
+      "Agent(model:X) per-call override for haiku/opus exceptions"
+    ]
+  }
+}

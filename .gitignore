@@ -1,0 +1,55 @@
+# NORIA — .gitignore
+
+# === Secrets ===
+.env
+.env.*
+!.env.example
+
+# === Research content (user-specific) ===
+wiki/sources/*.md
+wiki/concepts/*.md
+wiki/synthesis/*.md
+wiki/entities/*.md
+wiki/archive/*.md
+wiki/moc-*.md
+wiki/dashboard.md
+wiki/research-frontier.md
+!wiki/index.md
+raw/**/*.md
+raw/**/*.json
+!raw/**/.gitkeep
+log.md
+
+# === KB data (computed, user-specific) ===
+.kb/*.jsonl
+.kb/*.json
+!.kb/manifest.json
+.kb/*.db
+
+# === Outputs (ephemeral) ===
+outputs/**/*.md
+!outputs/**/.gitkeep
+
+# === User-specific configs ===
+tools/research-topic-config.json
+tools/twitter-curated-accounts.json
+tools/tracked-labs.json
+.claude/settings.local.json
+.claude/memory/
+
+# === Obsidian (local vault config) ===
+wiki/.obsidian/
+
+# === Runtime / Cache ===
+__pycache__/
+*.pyc
+*.stackdump
+node_modules/
+.codex-tools/
+tools/wechat/data/
+tools/.twitter-cookies.txt
+
+# === Internal ===
+handoff/
+.aris/
+wiki.wsl-backup-*

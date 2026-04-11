@@ -1,0 +1,25 @@
+#!/bin/bash
+# Post-commit hook: sync wiki/ to remote research project after each commit
+# Only runs on feature/agent branch (where wiki work happens)
+# Only syncs if wiki/ files were changed in this commit
+
+REMOTE="${NORIA_REMOTE:-user@your-remote-host}"
+REMOTE_DIR="${NORIA_REMOTE_DIR:-/path/to/noria/}"
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Only sync on feature/agent branch
+[ "$BRANCH" != "feature/agent" ] && exit 0
+
+# Only sync if wiki/ was touched in this commit
+git diff-tree --no-commit-id --name-only -r HEAD | grep -q '^wiki/' || exit 0
+
+# Find the worktree root that has wiki/
+WIKI_DIR=$(git rev-parse --show-toplevel)/wiki/
+[ ! -d "$WIKI_DIR" ] && exit 0
+
+# Background rsync (don't block commit)
+(
+  rsync -az --delete "$WIKI_DIR" "$REMOTE:$REMOTE_DIR" 2>/dev/null \
+    && echo "[post-commit] wiki/ synced to $REMOTE:$REMOTE_DIR" \
+    || echo "[post-commit] wiki sync failed (remote unreachable?)"
+) &

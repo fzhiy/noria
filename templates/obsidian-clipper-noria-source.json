@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "0.1.0",
+  "name": "NORIA Source",
+  "behavior": "create",
+  "noteContentFormat": "---\ncitekey: \"{{slug}}\"\ntitle: \"{{title}}\"\nauthors: []\nyear: {{date:YYYY}}\nvenue: \"\"\ncitation_count: 0\nsource_type: web-clip\ndate_synced: {{date:YYYY-MM-DD}}\nurl: \"{{url}}\"\n---\n\n## Content\n\n{{content}}",
+  "path": "raw/web/",
+  "noteNameFormat": "{{date:YYYY-MM-DD}}-{{slug}}",
+  "triggers": [],
+  "properties": [
+    {
+      "name": "title",
+      "value": "{{title}}",
+      "type": "text"
+    },
+    {
+      "name": "url",
+      "value": "{{url}}",
+      "type": "text"
+    }
+  ]
+}
