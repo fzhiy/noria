@@ -159,11 +159,11 @@ NORIA 构建于以下项目和服务之上：
 - **[Karpathy llm-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** — 启发本项目核心架构的 LLM Wiki 模式
 - **[Claude Code](https://claude.ai/claude-code)** (Anthropic) — 驱动 NORIA 多模型编排的 AI agent 运行时
 - **[Semantic Scholar API](https://api.semanticscholar.org/)** (Allen AI) — 学术论文搜索、引用数据、会议元数据
-- **[DeepXiv](https://deepxiv.org/)** — arXiv 论文渐进式云端读取 API（零 LLM 成本）
+- **[DeepXiv](https://github.com/DeepXiv/deepxiv_sdk)** — arXiv 论文渐进式云端读取 API（零 LLM 成本）
 - **[Obsidian](https://obsidian.md/)** — 知识可视化前端，插件：[Juggl](https://juggl.io/)、[Dataview](https://github.com/blacksmithgu/obsidian-dataview)、[Supercharged Links](https://github.com/mdelobelle/metadatamenu)
 - **[QMD](https://github.com/nicholasgasior/qmd)** — 本地 BM25 + 向量搜索引擎
 - **[Scweet](https://github.com/Altimis/Scweet)** — Twitter/X 数据采集（用户需自行遵守 X/Twitter 服务条款）
-- **[Hermes-Agent](https://github.com/NousResearch/Hermes-Function-Calling)** (NousResearch) — 反馈闭环设计模式的灵感来源
+- **[Hermes-Agent](https://github.com/NousResearch/hermes-agent)** (NousResearch) — 反馈闭环设计模式的灵感来源
 - **[OpenAI Codex CLI](https://github.com/openai/codex)** — 通过 GPT-5.4 进行跨模型对抗性审查
 - **[Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — 自主研究循环设计的灵感来源
 - **[llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)** — LLM 知识库架构参考实现

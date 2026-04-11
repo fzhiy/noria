@@ -159,11 +159,11 @@ NORIA builds on the shoulders of these projects and services:
 - **[Karpathy llm-wiki](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)** — the original LLM Wiki pattern that inspired this project's core architecture
 - **[Claude Code](https://claude.ai/claude-code)** (Anthropic) — the AI agent runtime that powers NORIA's multi-model orchestration
 - **[Semantic Scholar API](https://api.semanticscholar.org/)** (Allen AI) — academic paper search, citation data, and venue metadata
-- **[DeepXiv](https://deepxiv.org/)** — cloud API for progressive arXiv paper reading (zero LLM cost)
+- **[DeepXiv](https://github.com/DeepXiv/deepxiv_sdk)** — cloud API for progressive arXiv paper reading (zero LLM cost)
 - **[Obsidian](https://obsidian.md/)** — the knowledge visualization frontend, with plugins: [Juggl](https://juggl.io/), [Dataview](https://github.com/blacksmithgu/obsidian-dataview), [Supercharged Links](https://github.com/mdelobelle/metadatamenu)
 - **[QMD](https://github.com/nicholasgasior/qmd)** — local BM25 + vector search engine for wiki content
 - **[Scweet](https://github.com/Altimis/Scweet)** — Twitter/X data collection (users must comply with X/Twitter ToS)
-- **[Hermes-Agent](https://github.com/NousResearch/Hermes-Function-Calling)** (NousResearch) — inspiration for the feedback loop design pattern
+- **[Hermes-Agent](https://github.com/NousResearch/hermes-agent)** (NousResearch) — inspiration for the feedback loop design pattern
 - **[OpenAI Codex CLI](https://github.com/openai/codex)** — cross-model adversarial review via GPT-5.4
 - **[Auto-claude-code-research-in-sleep](https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep)** — inspiration for autonomous research loop design
 - **[llm-knowledge-base](https://github.com/louiswang524/llm-knowledge-base)** — reference implementation for LLM-powered knowledge base architecture

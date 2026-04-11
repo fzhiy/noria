@@ -1,10 +1,10 @@
-# ProveWiki Knowledge Base — Architecture
+# NORIA Knowledge Base — Architecture
 
 > Last updated: 2026-04-11. Review history: `outputs/reviews/`
 
 ## Vision
 
-ProveWiki is an **agent-first, CLI-first academic research knowledge service** for CS/AI researchers.
+NORIA is an **agent-first, CLI-first academic research knowledge service** for CS/AI researchers.
 
 **Core goals**:
 - Provide reliable knowledge retrieval and Q&A with minimal token cost
@@ -42,16 +42,16 @@ Raw Sources (user owns)  →  LLM Engine (Claude Code)  →  Wiki (LLM maintains
 
 ### Layer 2: Wiki Knowledge (LLM maintains, user verifies)
 
-| Directory/File | Content |
-|---|---|
-| `wiki/sources/` | One page per ingested source |
-| `wiki/concepts/` | Topic articles with wikilinks |
-| `wiki/synthesis/` | Cross-cutting themes (post-lint only) |
-| `wiki/entities/` | Lab/researcher/project profiles (≥3 source appearances) |
-| `wiki/archive/` | Superseded/retracted pages |
-| `wiki/index.md` | Master index for coarse routing |
-| `wiki/dashboard.md` | Dataview dashboard |
-| `wiki/moc-*.md` | Maps of Content (per domain) |
+| Directory/File | Content | Count (current) |
+|---|---|---|
+| `wiki/sources/` | One summary per ingested source | **142** pages |
+| `wiki/concepts/` | Topic articles with wikilinks | **32** pages |
+| `wiki/synthesis/` | Cross-cutting themes (post-lint only) | **12** pages |
+| `wiki/entities/` | Lab/researcher/project profiles (≥3 source appearances) | **2** pages |
+| `wiki/archive/` | Superseded/retracted pages | — |
+| `wiki/index.md` | Master index for coarse routing | 1 |
+| `wiki/dashboard.md` | Dataview dashboard (5 queries) | 1 |
+| `wiki/moc-*.md` | Maps of Content (agent, peft, benchmark, adaptation, safety) | 5 |
 
 High-frequency entities (labs, researchers) get dedicated pages in `wiki/entities/`. Lower-frequency entities use **frontmatter tags**: `author:hinton`, `method:transformer`, etc.
 
@@ -179,6 +179,7 @@ Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 | `kb-output.ts` | Multi-format exporter (JSONL/Marp/Report) |
 | `kb-graph-export.ts` | Graph export (JSON/GraphML/HTML) |
 | `kb-juggl-inject.ts` | Juggl CSS styling injection |
+| `chatgpt-research-agent.ts` | ChatGPT Pro automation (Playwright-based) |
 
 ### Quality & Verification
 | Tool | Purpose |
@@ -215,11 +216,11 @@ llm-wiki/
 ├── wiki/                  # Knowledge wiki (LLM maintains)
 │   ├── index.md           # Master index
 │   ├── dashboard.md       # Dataview dashboard
-│   ├── moc-*.md           # Maps of Content (per domain)
-│   ├── sources/           # One page per paper
-│   ├── concepts/          # Topic articles
-│   ├── synthesis/         # Cross-cutting analyses
-│   ├── entities/          # Lab/researcher profiles
+│   ├── moc-*.md           # Maps of Content (5 MOCs)
+│   ├── sources/           # 142 source summaries
+│   ├── concepts/          # 32 concept articles
+│   ├── synthesis/         # 12 synthesis articles
+│   ├── entities/          # 2 lab/researcher profiles
 │   └── archive/           # Superseded pages
 ├── outputs/               # Generated artifacts (NEVER fed back)
 │   ├── queries/           # Q&A results (query-derived)

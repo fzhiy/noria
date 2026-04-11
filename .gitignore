@@ -53,3 +53,4 @@ tools/.twitter-cookies.txt
 handoff/
 .aris/
 wiki.wsl-backup-*
+.gitleaks.toml

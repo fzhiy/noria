@@ -13,7 +13,7 @@
  *
  * Usage:
  *   npx tsx tools/wechat-ingest.ts --poll --since 2026-04-01
- *   npx tsx tools/wechat-ingest.ts --subscribe "机器之心"
+ *   npx tsx tools/wechat-ingest.ts --subscribe "example-account"
  *   npx tsx tools/wechat-ingest.ts --list
  *   npx tsx tools/wechat-ingest.ts --status
  *   npx tsx tools/wechat-ingest.ts --poll --dry-run
