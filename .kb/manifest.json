@@ -1506,6 +1506,157 @@
       "compiled_at": "2026-04-09T02:00:00Z",
       "source_page": "wiki/sources/alenezi2026-from-prompt-response-to-goal-d.md",
       "concepts_touched": []
+    },
+    "raw/semantic-scholar/sakai2025-using-llm-based-deep.md": {
+      "status": "pruned",
+      "pruned_at": "2026-04-11T19:55:11Z",
+      "reason": "Bug detection in web apps \u2014 peripheral to agent adaptation research"
+    },
+    "raw/arxiv/lin2026-ui-voyager.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-11T19:55:11Z",
+      "source_page": "wiki/sources/lin2026-ui-voyager.md",
+      "concepts_touched": [
+        "self-evolving-agent",
+        "gui-agent",
+        "reinforcement-learning-for-agents"
+      ]
+    },
+    "raw/arxiv/zhu2026-hybrid-self-evolving.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-11T19:55:11Z",
+      "source_page": "wiki/sources/zhu2026-hybrid-self-evolving.md",
+      "concepts_touched": [
+        "agent-memory",
+        "gui-agent",
+        "self-evolving-agent"
+      ]
+    },
+    "raw/arxiv/xiao2026-ui-mem.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-11T19:55:11Z",
+      "source_page": "wiki/sources/xiao2026-ui-mem.md",
+      "concepts_touched": [
+        "agent-memory",
+        "gui-agent",
+        "reinforcement-learning-for-agents"
+      ]
+    },
+    "raw/arxiv/li2026-magicgui-rms.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-11T19:55:11Z",
+      "source_page": "wiki/sources/li2026-magicgui-rms.md",
+      "concepts_touched": [
+        "gui-agent",
+        "self-evolving-agent",
+        "reinforcement-learning-for-agents"
+      ]
+    },
+    "raw/semantic-scholar/liu2025-webexplorer.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-11T19:55:11Z",
+      "source_page": "wiki/sources/liu2025-webexplorer.md",
+      "concepts_touched": [
+        "web-agent",
+        "self-evolving-agent",
+        "reinforcement-learning-for-agents"
+      ]
+    },
+    "raw/arxiv/wang2025-warex.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/wang2025-warex.md",
+      "concepts_touched": [
+        "agent-robustness",
+        "agent-benchmark",
+        "web-agent"
+      ]
+    },
+    "raw/arxiv/luo2025-securewebarena.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/luo2025-securewebarena.md",
+      "concepts_touched": [
+        "agent-safety",
+        "agent-benchmark",
+        "web-agent"
+      ]
+    },
+    "raw/arxiv/chen2025-trap.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/chen2025-trap.md",
+      "concepts_touched": [
+        "agent-safety",
+        "web-agent",
+        "agent-robustness"
+      ]
+    },
+    "raw/arxiv/emergence2026-webvoyager.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/emergence2026-webvoyager.md",
+      "concepts_touched": [
+        "agent-benchmark",
+        "web-agent"
+      ]
+    },
+    "raw/arxiv/gui-exploration-lab2025.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/gui-exploration-lab2025.md",
+      "concepts_touched": [
+        "gui-agent",
+        "reinforcement-learning-for-agents"
+      ]
+    },
+    "raw/arxiv/synthesizing-procedural-memory2025.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/synthesizing-procedural-memory2025.md",
+      "concepts_touched": [
+        "agent-memory",
+        "skill-learning"
+      ]
+    },
+    "raw/arxiv/guo2025-legomem.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/guo2025-legomem.md",
+      "concepts_touched": [
+        "agent-memory",
+        "skill-learning",
+        "multi-agent-system"
+      ]
+    },
+    "raw/arxiv/evoskill2026.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/evoskill2026.md",
+      "concepts_touched": [
+        "skill-learning",
+        "self-evolving-agent"
+      ]
+    },
+    "raw/arxiv/adaptation-agentic-ai-survey2025.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/adaptation-agentic-ai-survey2025.md",
+      "concepts_touched": [
+        "self-evolving-agent",
+        "reinforcement-learning-for-agents",
+        "continual-learning"
+      ]
+    },
+    "raw/arxiv/webtrap-park2026.md": {
+      "status": "compiled",
+      "compiled_at": "2026-04-12T00:00:00Z",
+      "source_page": "wiki/sources/webtrap-park2026.md",
+      "concepts_touched": [
+        "agent-safety",
+        "web-agent",
+        "agent-benchmark"
+      ]
     }
   }
 }

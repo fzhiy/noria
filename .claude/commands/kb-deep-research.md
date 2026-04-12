@@ -31,13 +31,15 @@ npx tsx tools/chatgpt-research-agent.ts auto-loop [--max-rounds 5] [--max-gaps 3
 
 ## Effort Routing
 
-| Effort | ChatGPT Web Level | Codex CLI flag | Use For |
+| Effort | ChatGPT Web Level | Driver Level | Use For |
 |---|---|---|---|
-| `medium` | Standard Thinking | `-c 'model_reasoning_effort="medium"'` | Paper summary, simple lookup |
-| `high` | Extended Thinking | `-c 'model_reasoning_effort="high"'` | Gap analysis, claim verification |
-| `xhigh` | Heavy / Deep Research | `-c 'model_reasoning_effort="xhigh"'` | Cross-domain synthesis, hypothesis |
+| `lite` | Standard (lite) | `--level standard` | Quick lookup, abstract confirmation |
+| `standard` | Standard | `--level standard` | Paper summary, simple lookup |
+| `extended` | Extended | `--level extended` | Gap analysis, claim verification |
+| `heavy` | Heavy | `--level heavy` | Cross-domain synthesis, hypothesis |
+| `beast` | Heavy (exhaustive) | `--level heavy` | Comprehensive survey, multi-round iteration |
 
-Default: auto-selected from topic keywords. All effort levels are handled by codex exec (L1/L2).
+Default: auto-selected from topic keywords (`standard`/`extended`/`heavy`). All effort levels use `model_reasoning_effort="xhigh"` (non-negotiable floor per effort contract). Legacy names (`medium`/`high`/`xhigh`) are accepted and mapped automatically.
 
 ## Modes
 
@@ -45,7 +47,7 @@ Default: auto-selected from topic keywords. All effort levels are handled by cod
 
 1. Select effort: auto-select unless `--effort` is provided.
 2. Build prompt from RT config and topic.
-3. Run: `npx tsx tools/chatgpt-research-agent.ts think --topic "<topic>" [--effort <level>]`
+3. Run: `npx tsx tools/chatgpt-research-agent.ts think --topic "<topic>" [--effort lite|standard|extended|heavy|beast]`
 4. Save output to `outputs/research/chatgpt-sessions/<date>-<slug>.md`.
 5. If `--auto-sync`: extract arXiv IDs, run `/kb-sync`, then `/kb-compile`.
 

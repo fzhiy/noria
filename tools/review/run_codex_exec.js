@@ -44,6 +44,11 @@ const forceArgs = (isNightmare || effortTier)
   : [];
 const nightmareArgs = forceArgs; // backward compat
 
+// Transparency banner (effort contract requirement)
+const mode = isNightmare ? 'nightmare' : 'review';
+const tier = effortTier || (isNightmare ? 'beast' : 'extended');
+console.error(`[research-review] model: gpt-5.4 via codex | effort: ${tier} | thinking: xhigh (invariant) | mode: ${mode}`);
+
 const candidates = process.platform === 'win32' ? ['codex.cmd', 'codex'] : ['codex'];
 let result = null;
 

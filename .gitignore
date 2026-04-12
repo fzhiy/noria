@@ -42,3 +42,4 @@ tools/wechat/data/
 # Auto-generated Canvas (deprecated — use Juggl/sigma.js instead)
 wiki/*.canvas
 wiki/canvas/
+nohup.out

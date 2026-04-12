@@ -38,6 +38,8 @@ interface PageMeta {
   sources: string[];
   provenance: string;
   hasSectionCitations: boolean;
+  redirect?: string;
+  lastReviewed?: string;
 }
 
 function loadPages(): PageMeta[] {
@@ -59,6 +61,8 @@ function loadPages(): PageMeta[] {
         sources: Array.isArray(fm.sources) ? fm.sources : [],
         provenance: String(fm.provenance ?? "unknown"),
         hasSectionCitations: /\[source:.*sec\./i.test(content),
+        redirect: fm.redirect ? String(fm.redirect) : undefined,
+        lastReviewed: fm.last_reviewed ? String(fm.last_reviewed) : undefined,
       });
     }
   }
@@ -102,7 +106,7 @@ function loadSignals(): Signal[] {
 
 // ── Gap detectors ────────────────────────────────────────────────────
 interface Gap {
-  type: "demand" | "depth" | "structural" | "frontier" | "audit";
+  type: "demand" | "depth" | "structural" | "frontier" | "audit" | "synthesis-review" | "synthesis-update";
   severity: "HIGH" | "MEDIUM" | "LOW";
   description: string;
   action: string;
@@ -142,7 +146,7 @@ function detectDepthGaps(pages: PageMeta[], signals: Signal[]): Gap[] {
   }
 
   const abstractOnly = pages.filter(p =>
-    p.dir === "sources" && !p.hasSectionCitations && p.provenance === "source-derived"
+    p.dir === "sources" && !p.hasSectionCitations && p.provenance === "source-derived" && !p.redirect
   );
 
   for (const page of abstractOnly) {
@@ -288,6 +292,62 @@ function detectAuditGaps(signals: Signal[]): Gap[] {
   return gaps;
 }
 
+function detectSynthesisReview(pages: PageMeta[]): Gap[] {
+  const gaps: Gap[] = [];
+  const synthCount = pages.filter(p => p.dir === "synthesis").length;
+  const SOFT_CEILING = 15;
+  if (synthCount >= SOFT_CEILING - 2) {
+    gaps.push({
+      type: "synthesis-review",
+      severity: "LOW",
+      description: `${synthCount} synthesis articles — approaching ceiling (${SOFT_CEILING}). Review before creating more.`,
+      action: `/kb-lint --semantic (check synthesis governance)`,
+      anchors: [],
+    });
+  }
+  return gaps;
+}
+
+function detectSynthesisUpdate(pages: PageMeta[], relations: Relation[]): Gap[] {
+  const gaps: Gap[] = [];
+  const synthPages = pages.filter(p => p.dir === "synthesis");
+  if (!synthPages.length) return gaps;
+
+  // For each synthesis, check if new sources touch its linked concepts but it hasn't been reviewed recently
+  const now = new Date();
+  const STALE_DAYS = 30;
+
+  for (const synth of synthPages) {
+    if (!synth.lastReviewed) continue;
+    const reviewed = new Date(synth.lastReviewed);
+    const daysSince = Math.floor((now.getTime() - reviewed.getTime()) / (1000 * 60 * 60 * 24));
+    if (daysSince < STALE_DAYS) continue;
+
+    // Count sources compiled after last_reviewed that link to same concepts
+    const synthConcepts = new Set<string>();
+    for (const r of relations) {
+      if (r.source === synth.slug) synthConcepts.add(r.target);
+      if (r.target === synth.slug) synthConcepts.add(r.source);
+    }
+
+    const newSources = pages.filter(p =>
+      p.dir === "sources" && !synth.sources.includes(p.slug) &&
+      pages.some(c => c.dir === "concepts" && synthConcepts.has(c.slug) && c.sources.includes(p.slug))
+    );
+
+    if (newSources.length >= 2) {
+      gaps.push({
+        type: "synthesis-update" as any,
+        severity: newSources.length >= 5 ? "HIGH" : "MEDIUM",
+        description: `${synth.slug} has ${newSources.length} new sources touching its concepts but hasn't been reviewed in ${daysSince} days`,
+        action: `/kb-reflect --update ${synth.slug}`,
+        anchors: [synth.slug],
+      });
+    }
+  }
+  return gaps;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────
 function main() {
   const argv = process.argv.slice(2);
@@ -310,6 +370,8 @@ function main() {
   if (!typeFilter || typeFilter === "structural") allGaps.push(...detectStructuralGaps(pages, relations));
   if (!typeFilter || typeFilter === "frontier") allGaps.push(...detectFrontierGaps(pages));
   if (!typeFilter || typeFilter === "audit") allGaps.push(...detectAuditGaps(signals));
+  if (!typeFilter || typeFilter === "synthesis-review") allGaps.push(...detectSynthesisReview(pages));
+  if (!typeFilter || typeFilter === "synthesis-update") allGaps.push(...detectSynthesisUpdate(pages, relations));
 
   // Sort by severity
   const sevOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };

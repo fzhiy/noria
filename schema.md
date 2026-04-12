@@ -112,6 +112,42 @@ Entity pages are lightweight profile pages linking to the entity's source contri
 
 **When to create**: entity appears in ≥3 source pages. Do NOT create for every author — only for high-frequency entities that serve as navigation hubs.
 
+### Synthesis governance
+
+Each synthesis article's identity is defined by its **thesis** (core argument), not by which concepts it tags. Two articles sharing 80% of concepts but with different theses are NOT redundant.
+
+**Required structure**: Every synthesis page MUST have a `## Thesis` section (one paragraph stating the core argument). Pages with only `## Summary` should be upgraded.
+
+**Decision tree** (CREATE / UPDATE / SPLIT / MERGE):
+
+1. New cross-cutting insight discovered →
+   - Does an existing synthesis thesis already cover it? → **UPDATE** that page (add sources, strengthen argument)
+   - No existing thesis covers it? → **CREATE** new synthesis
+2. An existing synthesis thesis **diverges** into two independent arguments during update → **SPLIT** into two pages (even if concept overlap is high)
+3. Two synthesis theses **converge** to the same argument → **MERGE** via complete rewrite (not append)
+
+**Soft ceiling**: ~15 synthesis articles per focused research topic. Exceeding requires frontmatter field:
+```yaml
+justification: "New cross-cutting theme not covered by existing synthesis: ..."
+```
+
+**Periodic review**: After every ~50 new sources, audit synthesis articles for thesis drift, mergeable convergence, and splittable divergence.
+
+**Extended frontmatter** (required for synthesis pages):
+
+```yaml
+role: umbrella | child | bridge | decision | safety | domain
+parent: ""              # slug of umbrella page (if child)
+scope: "one-line scope" # what this synthesis covers
+last_reviewed: YYYY-MM-DD
+decision_history: CREATE  # CREATE | UPDATE | SPLIT | MERGE — tracks how this page was born/changed
+```
+
+- `role`: umbrella (broad canonical review), child (narrower sub-analysis under an umbrella), bridge (connects two otherwise separate concept clusters), decision (prescriptive framework), safety (safety intersection), domain (modality-specific)
+- `parent`: only for child pages; points to the umbrella page slug
+- `last_reviewed`: updated each time the synthesis is meaningfully revised (not just formatting)
+- `decision_history`: append-only log of governance decisions (e.g., `CREATE → UPDATE → SPLIT`)
+
 ### Entity metadata (tag-based, for lower-frequency entities)
 
 Use tags: `author:hinton`, `method:transformer`, `dataset:imagenet`, `venue:neurips`, `benchmark:glue`.

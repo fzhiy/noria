@@ -236,7 +236,28 @@ updated: 2026-04-09
 - [[web-agent-robustness-under-drift|Web Agent Robustness under UI and Workflow Drift]] — Measurement, failure mechanisms, and mitigation strategies for drift impact. Synthesizes TimeWarp, OpenApps, DigiRL, ST-WebAgentBench, DECEPTICON, and 6 new S2 drift papers.
 - [[agent-safety-under-drift|Agent Safety and Oversight under Environmental Drift]] — Safety-drift intersection: adversarial attack surfaces (dark patterns, environmental injection, MCP vulnerabilities), safety evaluation frameworks (CuP, VR), defense mechanisms (RAC, human oversight, zero-trust).
 - [[benchmark-methodology-adaptive-agents|Benchmark Methodology for Evaluating Adaptive Web Agents]] — Three generations of benchmarks (static→drift-aware→world model), methodological trade-offs, what current benchmarks cannot measure (continuous drift, recovery time, selective retention, safety under drift).
+- [[robustness-reshapes-benchmark-design|Agent Benchmark × Robustness Bridge]] — Static benchmarks mask fragility; robustness-aware design principles (multi-config evaluation, first-class robustness metrics, programmatic grounding). Synthesizes 12 sources.
+- [[gui-agent-rl-benchmark-coevolution|GUI Agent Training & Evaluation Co-Evolution]] — Feedback loop between GUI benchmarks and RL methods; training spectrum from online AWR to training-free retrieval. Synthesizes 14 sources.
 
+
+
+### Session 12 Sync — DeepXiv Discovery (2025-2026)
+- [[wang2025-warex]] — WAREX: network-layer fault injection for web agent robustness testing (WebArena, WebVoyager, REAL).
+- [[luo2025-securewebarena]] — SecureWebArena: 6 web envs, 2970 trajectories, 6 attack vectors for LVLM agent security.
+- [[chen2025-trap]] — TRAP: 5-dimensional prompt injection persuasion benchmark, 25% avg ASR.
+- [[emergence2026-webvoyager]] — Emergence WebVoyager: 535 tasks exposing inflated benchmarks (87%→68.6%).
+- [[gui-exploration-lab2025]] — GE-Lab: GUI navigation simulation, MT-RL outperforms SFT.
+- [[synthesizing-procedural-memory2025]] — Synthesizing Procedural Memory: 4 bottleneck gaps in automated workflow generation.
+- [[guo2025-legomem]] — LEGOMem: modular procedural memory for multi-agent workflow automation.
+- [[evoskill2026]] — EvoSkill: failure-driven skill discovery, +7.3% OfficeQA, zero-shot transfer.
+- [[adaptation-agentic-ai-survey2025]] — Adaptation of Agentic AI: 4-paradigm framework (A1/A2/T1/T2) survey.
+- [[webtrap-park2026]] — WebTrap Park: 1226 security tasks, 3 risk dimensions, model-agnostic platform.
+### Session 12 Sync — Self-Evolving GUI Agents (2026)
+- [[lin2026-ui-voyager]] — UI-Voyager: self-evolving mobile GUI agent learning from failed experience via RFT.
+- [[zhu2026-hybrid-self-evolving]] — Hybrid episodic-semantic structured memory for persistent GUI agent learning.
+- [[xiao2026-ui-mem]] — UI-Mem: self-evolving experience memory + online RL for mobile GUI agents.
+- [[li2026-magicgui-rms]] — MagicGUI-RMS: multi-agent reward model for annotation-free GUI agent self-evolution.
+- [[liu2025-webexplorer]] — WebExplorer: explore-and-evolve framework for long-horizon web agent training (48 citations).
 ### Recent Additions (Session 7 Sync — Batch 2)
 - [[zhang2026-expseek]] — ExpSeek: self-triggered step-level experience seeking for web agents via entropy thresholds (+9.3% on Qwen3-8B).
 - [[evtimov2025-wasp]] — WASP: end-to-end web agent security benchmark against prompt injection (86% partial attack success).

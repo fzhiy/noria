@@ -4,13 +4,15 @@
 
 ## 5-Tier Definitions
 
-| Tier | Token Multiplier | Intent | Typical Use |
-|------|-----------------|--------|-------------|
-| `lite` | ~0.3x | Quick confirmation, minimum depth | Existence checks, abstract-level verification, fast iteration |
+| Tier | Work Volume | Intent | Typical Use |
+|------|------------|--------|-------------|
+| `lite` | ~0.5x | Quick confirmation, minimum depth | Existence checks, abstract-level verification, fast iteration |
 | `standard` | 1x (default) | Everyday working depth | Routine compile, search, standard enrichment |
 | `extended` | ~2x | Deeper analysis | Full paper deepen, gap refinement, pre-merge review |
-| `heavy` | ~4x | Deep reasoning | Cross-paper synthesis, architectural planning, thorough review |
-| `beast` | 5–8x | Exhaustive analysis | Comprehensive literature survey, exhaustive review, auto-loop until converged |
+| `heavy` | ~3x | Deep reasoning | Cross-paper synthesis, architectural planning, thorough review |
+| `beast` | 4–6x | Exhaustive analysis | Comprehensive literature survey, exhaustive review, auto-loop until converged |
+
+> **Note:** Work volume multipliers calibrated via kb-deepen benchmark on 29-page paper (2026-04-11). Actual cost varies with paper length and thinking overhead. Multi-skill chains (e.g., beast kb-expand) may exceed single-skill estimates.
 
 ## User Syntax
 
@@ -115,11 +117,50 @@ These always run at full capacity regardless of effort:
 
 ## Transparency Requirement
 
-Each effort-aware skill MUST display its active tier at startup:
+Each effort-aware skill MUST display a status banner at startup showing model, effort, and thinking state:
 
 ```
-[kb-reflect] effort: heavy (4x) | min_sources=5, passes=2 | reviewer: gpt-5.4 xhigh (invariant)
+[kb-reflect] model: opus | effort: heavy (4x) | thinking: on | min_sources=5, passes=2
+[kb-deepen]  model: opus | effort: extended (2x) | thinking: on | sections=5, domain_fields=yes
+[research-review] model: gpt-5.4 via codex | effort: beast (5-8x) | thinking: xhigh (invariant) | passes=2+cross
+[kb-compile] model: sonnet (subagent) | effort: standard (1x) | thinking: on | batch=7
 ```
+
+Fields:
+- **model**: Which model is executing (`opus`, `sonnet`, `haiku`, `gpt-5.4 via codex`, `gpt-5.4 via mcp`)
+- **effort**: Active tier + multiplier
+- **thinking**: `on`/`off` for Claude; `xhigh (invariant)` for GPT (never downgraded)
+- **cost**: Visual indicator of relative work volume
+- **key params**: Skill-specific parameters at this effort level (from tables above)
+
+Cost indicator mapping:
+
+| Tier | Cost Bar | Label |
+|------|----------|-------|
+| `lite` | `██░░░░░░` | low |
+| `standard` | `████░░░░` | moderate |
+| `extended` | `█████░░░` | elevated |
+| `heavy` | `███████░` | high |
+| `beast` | `████████` | very high |
+
+Full banner example:
+```
+[kb-deepen] model: opus | effort: beast (5-8x) | thinking: on | cost: ████████ very high | sections=all+appendix
+[kb-ask]    model: opus | effort: lite (0.3x)  | thinking: on | cost: ██░░░░░░ low | max_pages=2
+```
+
+## Effort Naming Clarification
+
+NORIA effort tiers control **skill-level work volume** (breadth, depth, iterations). They are NOT the same as model-level effort settings:
+
+| Layer | Setting | Who Controls | NORIA Changes It? |
+|-------|---------|-------------|-------------------|
+| Claude Code harness | `effortLevel`: low / medium / high | User (`settings.json`) | **No** — user's choice |
+| Claude thinking | thinking token budget | Claude Code harness | **No** — set by harness |
+| GPT reasoning | `model_reasoning_effort`: xhigh | effort-contract floor | **No** — always xhigh |
+| **NORIA skill** | **effort: lite / standard / ... / beast** | **Skill invocation** | **Yes** — this is what tiers control |
+
+When a skill banner shows `effort: heavy (4x)`, this means the skill will do ~4x the standard work volume. The underlying model's thinking depth is unchanged.
 
 ## GPT Effort Mapping
 

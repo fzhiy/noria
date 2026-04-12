@@ -216,16 +216,16 @@ function ckOrphans(): Issue[] {
   if (!existsSync(INDEX)) return [{ level: "FAIL", check: "orphans", file: rel(INDEX), line: 0, msg: "index.md not found" }];
   const linked = new Set(allMatches(WL_RE, readFileSync(INDEX, "utf-8")).map(m => m[1].trim()));
   const orphs: string[] = [];
-  for (const d of [SRC_DIR, CON_DIR]) {
+  for (const d of [SRC_DIR, CON_DIR, SYN_DIR]) {
     if (!existsSync(d)) continue;
-    for (const f of readdirSync(d).filter(f => f.endsWith(".md")).sort()) {
+    for (const f of readdirSync(d).filter(f => f.endsWith(".md") && f !== ".gitkeep").sort()) {
       if (!linked.has(f.replace(/\.md$/, ""))) orphs.push(rel(resolve(d, f)));
     }
   }
-  for (const o of orphs) iss.push({ level: "FAIL", check: "orphans", file: o, line: 0, msg: "not linked from index.md" });
+  for (const o of orphs) iss.push({ level: o.includes("synthesis") ? "WARN" : "FAIL", check: "orphans", file: o, line: 0, msg: "not linked from index.md" });
   let total = 0;
-  for (const d of [SRC_DIR, CON_DIR]) {
-    if (existsSync(d)) total += readdirSync(d).filter(f => f.endsWith(".md")).length;
+  for (const d of [SRC_DIR, CON_DIR, SYN_DIR]) {
+    if (existsSync(d)) total += readdirSync(d).filter(f => f.endsWith(".md") && f !== ".gitkeep").length;
   }
   const ok = total - orphs.length;
   if (ok > 0) iss.unshift({ level: "PASS", check: "orphans", file: "", line: 0, msg: `${ok} pages linked from index` });
@@ -459,6 +459,42 @@ function ckSocialLeadQuarantine(ps: string[]): Issue[] {
   return iss;
 }
 
+// ── Check 9: Synthesis Governance ─────────────────────────────────────
+function ckSynthesisGovernance(ps: string[]): Issue[] {
+  const iss: Issue[] = [];
+  const synthPages = ps.filter(p => p.includes("/synthesis/") && !p.endsWith(".gitkeep"));
+  const count = synthPages.length;
+
+  // Check each synthesis page for ## Thesis section
+  let withThesis = 0;
+  for (const p of synthPages) {
+    const content = readFileSync(p, "utf-8");
+    if (/^## Thesis/m.test(content)) {
+      withThesis++;
+    } else {
+      const slug = basename(p, ".md");
+      iss.push({ level: "FAIL", check: "synthesis_governance", file: rel(p), line: 0, msg: `missing ## Thesis section (required by synthesis governance)` });
+    }
+  }
+
+  // Ceiling warnings
+  if (count > 20) {
+    iss.push({ level: "WARN", check: "synthesis_governance", file: "", line: 0, msg: `${count} synthesis articles — HARD REVIEW: exceeds 20, audit for thesis overlap` });
+  } else if (count > 15) {
+    // Check justification frontmatter for pages beyond ceiling
+    for (const p of synthPages) {
+      const content = readFileSync(p, "utf-8");
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (fmMatch && !fmMatch[1].includes("justification:")) {
+        iss.push({ level: "WARN", check: "synthesis_governance", file: rel(p), line: 0, msg: `above ceiling (${count} > 15) but missing justification: in frontmatter` });
+      }
+    }
+  }
+
+  iss.push({ level: "PASS", check: "synthesis_governance", file: "", line: 0, msg: `${count} synthesis pages (${withThesis} with Thesis, ceiling: 15)` });
+  return iss;
+}
+
 // ── Check registry ────────────────────────────────────────────────────
 const CHECKS: CheckDef[] = [
   ["Frontmatter Validation", "frontmatter"],
@@ -469,6 +505,7 @@ const CHECKS: CheckDef[] = [
   ["Outputs Quarantine", "outputs_quarantine"],
   ["Duplicate Detection", "duplicates"],
   ["Social-Lead Quarantine", "social_lead_quarantine"],
+  ["Synthesis Governance", "synthesis_governance"],
 ];
 
 const SEMANTIC_CHECKS: CheckDef[] = [
@@ -568,6 +605,7 @@ function main(): number {
   iss.push(...ckOutputsQuarantine(ps));
   iss.push(...ckDuplicates());
   iss.push(...ckSocialLeadQuarantine(ps));
+  iss.push(...ckSynthesisGovernance(ps));
 
   let extra: CheckDef[] | undefined;
   if (semantic) {
