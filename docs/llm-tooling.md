@@ -27,7 +27,7 @@ Inspect the repo-local multi-model team:
 python3 tools/llm_tooling/agent_team.py doctor
 ```
 
-Copy the `noria` starter into a new repo:
+Copy the `noria-agent` starter into a new repo:
 
 ```bash
 python3 tools/llm_tooling/scaffold_llm_wiki_agent.py /path/to/new-repo
@@ -37,4 +37,4 @@ python3 tools/llm_tooling/scaffold_llm_wiki_agent.py /path/to/new-repo
 
 - `.mcp.json` is the Claude Code project-scope MCP file. It keeps project MCP separate from Claude's user settings and OAuth state.
 - The agent-team manifest is intentionally lightweight. It defines routing, roles, and project mappings without introducing another runtime harness.
-- The `templates/noria/` starter is for new independent repos that want `ARIS-first` semantics with optional `oh-my-claudecode` runtime orchestration.
+- The `templates/noria-agent/` starter is for new independent repos that want `ARIS-first` semantics with optional `oh-my-claudecode` runtime orchestration.

@@ -29,39 +29,12 @@ All pages use this frontmatter template:
 title: "Page Title"
 type: source | concept | synthesis
 provenance: source-derived | llm-derived | user-verified | social-lead
-verification_status: unreviewed | reviewed | verified | disputed
 sources: [citekey1, citekey2]
 tags: [keyword1, keyword2]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 ```
-
-### Verification status lifecycle
-
-- `unreviewed` — initial state, set by `kb-compile` when page enters `inbox/`
-- `reviewed` — set by `noria-queue approve` when human approves the page
-- `verified` — manually promoted after domain expert review
-- `disputed` — flagged when contradictory evidence is found
-
-Pages with `unreviewed` status are excluded from `evidence_query` MCP results.
-
-### Claims frontmatter (required for source pages)
-
-Source pages must include structured claims for fail-closed validation:
-
-```yaml
-claims:
-  - text: "Short claim statement"
-    citekey: firstauthor2025-keyword
-    locator: "sec.3.2, table.1"
-    type: empirical_result | method_claim | definition | comparison
-    confidence: high | medium | low
-```
-
-- Required fields per claim: `text`, `citekey`
-- Pages without claims are blocked from promotion via `noria-queue approve`
-- Concept and synthesis pages do not require claims
 
 ### Provenance assignment during kb-compile
 

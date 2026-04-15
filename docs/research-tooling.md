@@ -1,6 +1,6 @@
 # Research Tooling Strategy
 
-This project is an independent NORIA knowledge service repo.
+This project is an independent `noria-agent` repo.
 
 ## Primary Rule
 

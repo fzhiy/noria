@@ -79,6 +79,26 @@ Example: `/kb-deepen citekey -- effort: beast, sections: 3` → beast scaling fo
 | reasoning_rounds | 1 | 2 | 3 | 4 | 6+ |
 | auto_loop_max | 1 | 2 | 3 | 5 | until converged |
 
+#### `/kb-hypothesize` — default: `extended`
+
+| Parameter | lite | standard | extended | heavy | beast |
+|-----------|------|----------|----------|-------|-------|
+| landscape_sources | 5 | 10 | 15 | 25 | 40+ |
+| hypotheses_generated | 4–6 | 6–8 | 8–12 | 10–15 | 15–20 |
+| novelty_checks | 0 (quick only) | top 2 | top 3–5 | all | all + deep |
+| gpt_review_rounds | 0 | 1 | 1 | 2 | 2 + cross-compare |
+| external_search | skip | arXiv only | arXiv + S2 | arXiv + S2 + web | exhaustive |
+
+#### `/kb-novelty-check` — default: `extended`
+
+| Parameter | lite | standard | extended | heavy | beast |
+|-----------|------|----------|----------|-------|-------|
+| claims_extracted | 2–3 | 3–4 | 3–5 | 4–5 | 5+ |
+| queries_per_claim | 1 | 2 | 3 | 4 | 5+ |
+| local_kb_depth | brief only | brief + top 3 | brief + top 5 | all relevant full | exhaustive |
+| external_sources | arXiv only | arXiv + S2 | arXiv + S2 + venues | + DeepXiv + web | exhaustive all |
+| gpt_verification | skip | 1 round | 1 round | 2 rounds | 2 rounds + debate |
+
 ### Volume-Scalable Skills (effort scales quantity only)
 
 #### `/kb-compile` — default: `standard`

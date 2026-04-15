@@ -39,7 +39,7 @@ Feedback is `query-derived` — it NEVER enters `wiki/` directly. See
 
 ## Setup
 
-### On the wiki host
+### On the wiki host (WSL2)
 
 ```bash
 cd /path/to/noria
@@ -94,6 +94,22 @@ curl -s -X POST http://localhost:3849/ \
 # On remote — verify MCP tools visible
 # Start new Claude Code session, check for mcp__noria__search
 ```
+
+## Port Allocation
+
+| Port | Status | Notes |
+|------|--------|-------|
+| 3847 | Occupied | Old QMD process (may need cleanup) |
+| 3848 | Occupied | Old QMD process |
+| 3849 | **Active** | Current noria-mcp-server.py |
+
+Before starting, check: `ss -tlnp | grep 384`
+
+## Legacy: QMD MCP (deprecated for remote)
+
+QMD is still used locally for hybrid search (BM25 + vector) via `.mcp.json`,
+but it is **not used for remote access** due to CPU-mode startup latency.
+The local QMD configuration remains in `.mcp.json` for same-machine use.
 
 ## Troubleshooting
 

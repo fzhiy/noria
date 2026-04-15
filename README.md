@@ -44,18 +44,14 @@ cd noria
 # Start working with Claude Code
 claude
 
-# Add your first paper
-/kb-sync s2 "your research topic" --limit 5
+# Show project overview
+/wiki-help
 
-# Compile into inbox (human approval required)
+# Sync latest papers from Semantic Scholar
+/kb-sync s2 "web agent reinforcement learning" --limit 10
+
+# Compile new sources into wiki
 /kb-compile
-
-# Review and approve
-npx tsx tools/noria-queue.ts list
-npx tsx tools/noria-queue.ts approve <slug>
-
-# Start MCP evidence server
-python3 tools/noria-mcp-server.py 3849 wiki
 
 # Check wiki health
 /kb-lint

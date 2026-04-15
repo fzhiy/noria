@@ -44,7 +44,7 @@ COLLECTION_KEY = os.environ.get("ZOTERO_COLLECTION_KEY", "")
 MAX_BATCH = 20
 
 # Auto-detect OneDrive PDF directory
-DEFAULT_PDF_DIR = "/path/to/your/pdf/directory"
+DEFAULT_PDF_DIR = "/path/to/zotero/storage/_Phd/____Self-Evolving-Agents/CL/Agent"
 PDF_DIR = os.environ.get("ZOTERO_PDF_DIR", DEFAULT_PDF_DIR)
 
 
@@ -161,7 +161,7 @@ def push_paper(zot, paper: dict, collection_key: str, pdf_dir: str) -> dict:
         filename = make_zotero_filename(paper)
         # Convert WSL path to Windows path for Zotero desktop
         wsl_pdf_path = os.path.join(pdf_dir, filename)
-        win_pdf_path = wsl_pdf_path.replace("/mnt/c/", "C:\\").replace("/", "\\")
+        win_pdf_path = wsl_pdf_path.replace("/path/to/", "D:\\").replace("/", "\\")
         
         attach_data = {
             "itemType": "attachment",

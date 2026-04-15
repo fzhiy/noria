@@ -106,8 +106,7 @@ Every pipeline step follows the progressive reading pattern:
 |---|---|---|---|
 | 1 | `/kb-sync` | Zotero/arXiv/S2/Twitter/WeChat/GitHub → raw/ | Multi-platform, relevance-filtered |
 | 2 | `/kb-ingest` | Stage URLs/notes/PDFs → raw/ | Manual staging |
-| 3 | `/kb-compile` | raw/ → inbox/ (sources + concepts, with claims) | Manifest-gated, human approval required |
-| 3b | `noria-queue` | inbox/ → wiki/ (approve/reject/list) | Human gate, archives previous version on update |
+| 3 | `/kb-compile` | raw/ → wiki/sources/ + concepts/ + index.md | Manifest-gated, idempotent |
 | 4 | `/kb-lint` | 7-check health gate on wiki/ | **Mandatory** before synthesis (enforced by hook) |
 | 5 | `/kb-ask` | Query → synthesized answer → outputs/ | Query-derived, never enters wiki/ |
 
@@ -129,9 +128,10 @@ Every pipeline step follows the progressive reading pattern:
 | Obsidian Vault | Wikilink pipe syntax, Juggl typed links, Dataview | Operational |
 | sigma.js Graph | `tools/kb-graph-export.ts` → standalone HTML | Operational |
 | Feedback Loop | `submit_feedback` → triage → signal-index → gap scan → expand | Operational (signal-index.jsonl + demand prior) |
+| Knowledge Service | `/kb-service` + `/noria-consult` cross-project protocol | Operational (service-index.jsonl + preview search + GPT review gate) |
 | HTTP API | Deferred | Not started |
 
-### All 23 Slash Commands (Claude Code Skills)
+### All 25 Slash Commands (Claude Code Skills)
 
 Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 
@@ -139,9 +139,11 @@ Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 |-------|----------|
 | **Ingest & Compile** | `/kb-sync`, `/kb-ingest`, `/kb-import`, `/kb-compile`, `/kb-lint` |
 | **Intelligence** | `/kb-ask`, `/kb-reflect`, `/kb-deepen`, `/kb-discover`, `/kb-deep-research`, `/research-lit` |
+| **Research** | `/kb-hypothesize`, `/kb-novelty-check` |
 | **Flywheel** | `/kb-triage`, `/kb-gap-scan`, `/kb-expand`, `/kb-trending` |
 | **Maintenance** | `/kb-merge`, `/kb-output`, `/meta-optimize` |
-| **Review** | `/research-review`, `/gpt-nightmare-review` |
+| **Review** | `/research-review`, `/gpt-nightmare-review`, `/plan-review-loop` |
+| **Service** | `/kb-service`, `/noria-consult` (external template) |
 | **Utility** | `/wiki-help`, `/agent-team-plan`, `/mermaid-diagram` |
 
 ## Tools Inventory (30 files)

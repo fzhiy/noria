@@ -1,4 +1,4 @@
-# llm-wiki-agent Starter
+# noria-agent Starter
 
 This template bootstraps an independent research knowledge-base repo that uses:
 

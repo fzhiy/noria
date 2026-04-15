@@ -18,10 +18,10 @@ const RAW_ARXIV = resolve(PROJECT_ROOT, "raw", "arxiv");
 const RAW_ZOTERO = resolve(PROJECT_ROOT, "raw", "zotero", "papers");
 
 // ── CLI ────────────────────────────────────────────────────────────────
-interface CliArgs { query: string; limit: number; category: string | null; since: string | null; dryRun: boolean; noFilter: boolean }
+interface CliArgs { query: string; limit: number; category: string | null; since: string | null; dryRun: boolean; noFilter: boolean; preview: boolean; id: string | null }
 
 function parseArgs(argv: string[]): CliArgs {
-  const a: CliArgs = { query: "", limit: 10, category: null, since: null, dryRun: false, noFilter: false };
+  const a: CliArgs = { query: "", limit: 10, category: null, since: null, dryRun: false, noFilter: false, preview: false, id: null };
   for (let i = 2; i < argv.length; i++) {
     const f = argv[i];
     if (f === "--query" || f === "-q") a.query = argv[++i] ?? "";
@@ -30,10 +30,12 @@ function parseArgs(argv: string[]): CliArgs {
     else if (f === "--since") a.since = argv[++i] ?? null;
     else if (f === "--dry-run") a.dryRun = true;
     else if (f === "--no-filter") a.noFilter = true;
+    else if (f === "--preview") a.preview = true;
+    else if (f === "--id") a.id = argv[++i] ?? null;
     else { console.error(`Unknown flag: ${f}`); process.exit(1); }
   }
-  if (!a.query) {
-    console.error('Usage: npx tsx tools/arxiv-search.ts --query "terms" [--limit N] [--category cs.AI] [--since YYYY-MM-DD] [--dry-run]');
+  if (!a.query && !a.id) {
+    console.error('Usage: npx tsx tools/arxiv-search.ts --query "terms" [--limit N] [--category cs.AI] [--since YYYY-MM-DD] [--dry-run] [--preview] [--id arxivId]');
     process.exit(1);
   }
   return a;
@@ -54,7 +56,7 @@ function buildSearchQuery(args: CliArgs): string {
 async function searchArxiv(args: CliArgs): Promise<ArxivEntry[]> {
   const sq = buildSearchQuery(args);
   const url = `https://export.arxiv.org/api/query?search_query=${sq}&max_results=${args.limit}&sortBy=submittedDate&sortOrder=descending`;
-  console.log(`Querying: ${url}\n`);
+  console.error(`Querying: ${url}`);
 
   const MAX_RETRIES = 3;
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -167,10 +169,26 @@ function entryToMarkdown(e: ArxivEntry, citekey: string): string {
   return lines.join("\n");
 }
 
+// ── Fetch by ID (arXiv id_list API) ───────────────────────────────────
+async function fetchById(arxivId: string): Promise<ArxivEntry[]> {
+  const url = `https://export.arxiv.org/api/query?id_list=${encodeURIComponent(arxivId)}&max_results=1`;
+  console.error(`[arxiv] Fetching: ${url}`);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`arXiv API error: ${resp.status} ${resp.statusText}`);
+  return parseAtomEntries(await resp.text());
+}
+
 // ── Main ───────────────────────────────────────────────────────────────
 async function main() {
   const args = parseArgs(process.argv);
-  let entries = await searchArxiv(args);
+
+  // Fetch entries: --id (single paper) or --query (search)
+  let entries: ArxivEntry[];
+  if (args.id) {
+    entries = await fetchById(args.id);
+  } else {
+    entries = await searchArxiv(args);
+  }
   if (entries.length === 0) { console.log("No results found."); process.exit(0); }
 
   // Date filter
@@ -179,59 +197,85 @@ async function main() {
     entries = entries.filter((e) => new Date(e.published) >= d);
   }
 
-  console.log(`Found ${entries.length} papers${args.since ? ` (since ${args.since})` : ""}:\n`);
-  for (const e of entries) {
-    const ck = makeCitekey(e);
-    const date = e.published.split("T")[0];
-    console.log(`  ${ck}`);
-    console.log(`    ${e.title}`);
-    console.log(`    ${e.authors.slice(0, 3).join(", ")}${e.authors.length > 3 ? " et al." : ""}`);
-    console.log(`    ${date}  [${e.categories[0] ?? ""}]  https://arxiv.org/abs/${e.arxivId}\n`);
+  // Human-readable display (suppressed in --preview mode)
+  if (!args.preview) {
+    console.log(`Found ${entries.length} papers${args.since ? ` (since ${args.since})` : ""}:\n`);
+    for (const e of entries) {
+      const ck = makeCitekey(e);
+      const date = e.published.split("T")[0];
+      console.log(`  ${ck}`);
+      console.log(`    ${e.title}`);
+      console.log(`    ${e.authors.slice(0, 3).join(", ")}${e.authors.length > 3 ? " et al." : ""}`);
+      console.log(`    ${date}  [${e.categories[0] ?? ""}]  https://arxiv.org/abs/${e.arxivId}\n`);
+    }
   }
 
   if (args.dryRun) { console.log(`[dry-run] Would save ${entries.length} papers. Exiting.`); process.exit(0); }
 
   // Relevance filter (unless --no-filter)
-  let assessRelevance: typeof import("./relevance-filter.js").assessRelevance | null = null;
+  type RelevanceResult = Awaited<ReturnType<typeof import("./relevance-filter.js").assessRelevance>>;
+  let assessRelevanceFn: typeof import("./relevance-filter.js").assessRelevance | null = null;
   if (!args.noFilter) {
     try {
       const mod = await import("./relevance-filter.js");
-      assessRelevance = mod.assessRelevance;
+      assessRelevanceFn = mod.assessRelevance;
     } catch {
-      console.log("  [filter] relevance-filter not available, saving all results.");
+      if (!args.preview) console.log("  [filter] relevance-filter not available, saving all results.");
     }
   }
 
   const dedup = buildDedupIndex();
-  mkdirSync(RAW_ARXIV, { recursive: true });
+  if (!args.preview) mkdirSync(RAW_ARXIV, { recursive: true });
   let saved = 0, skipped = 0, filtered = 0;
+
+  // Preview: collect candidates as JSON. Normal: write files.
+  interface PreviewCandidate {
+    citekey: string; title: string; arxivId: string;
+    relevance: RelevanceResult | null;
+    duplicate: boolean; duplicateReason?: string;
+  }
+  const candidates: PreviewCandidate[] = [];
 
   for (const entry of entries) {
     const citekey = makeCitekey(entry);
-    const filename = `${slugify(citekey)}.md`;
-    if (dedup.citekeys.has(slugify(citekey))) { console.log(`  skip (dup citekey): ${filename}`); skipped++; continue; }
-    if (dedup.arxivIds.has(entry.arxivId)) { console.log(`  skip (dup arxiv_id ${entry.arxivId}): ${filename}`); skipped++; continue; }
+    const isDup = dedup.citekeys.has(slugify(citekey)) || dedup.arxivIds.has(entry.arxivId);
 
-    // Relevance check (OR-gate, Layer 1+3)
-    if (assessRelevance) {
-      const rel = await assessRelevance(entry.title, entry.abstract, {
-        categories: entry.categories,
-        arxivId: entry.arxivId,
-      }, { skipSpecter: true }); // Skip SPECTER2 for speed; use keyword heuristic
-      if (!rel.pass) {
-        console.log(`  skip (${rel.reasons[0] ?? "off-topic"}): ${entry.title.slice(0, 60)}...`);
-        filtered++;
-        continue;
-      }
+    let rel: RelevanceResult | null = null;
+    if (assessRelevanceFn && !isDup) {
+      rel = await assessRelevanceFn(entry.title, entry.abstract, {
+        categories: entry.categories, arxivId: entry.arxivId,
+      }, { skipSpecter: true }); // L3 keyword only
     }
 
+    if (args.preview) {
+      candidates.push({
+        citekey, title: entry.title, arxivId: entry.arxivId,
+        relevance: rel, duplicate: isDup,
+        duplicateReason: isDup ? "citekey/arxiv_id" : undefined,
+      });
+      continue;
+    }
+
+    // Normal save path
+    if (isDup) { console.log(`  skip (dup): ${slugify(citekey)}.md`); skipped++; continue; }
+    if (rel && !rel.pass) {
+      console.log(`  skip (${rel.reasons[0] ?? "off-topic"}): ${entry.title.slice(0, 60)}...`);
+      filtered++; continue;
+    }
+
+    const filename = `${slugify(citekey)}.md`;
     writeFileSync(resolve(RAW_ARXIV, filename), entryToMarkdown(entry, citekey), "utf-8");
     console.log(`  + ${filename}`);
     dedup.citekeys.add(slugify(citekey));
     dedup.arxivIds.add(entry.arxivId);
     saved++;
   }
-  console.log(`\nFound ${entries.length} papers, saved ${saved} new, skipped ${skipped} duplicates${filtered ? `, filtered ${filtered} off-topic` : ""}.`);
+
+  if (args.preview) {
+    console.log(JSON.stringify(candidates, null, 2));
+  } else {
+    console.log(`\nFound ${entries.length} papers, saved ${saved} new, skipped ${skipped} duplicates${filtered ? `, filtered ${filtered} off-topic` : ""}.`);
+  }
 }
 
 main().catch((err) => { console.error("Fatal error:", err); process.exit(1); });

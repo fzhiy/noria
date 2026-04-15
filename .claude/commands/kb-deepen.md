@@ -18,8 +18,8 @@ Deepen wiki source pages by reading the original paper PDF from local Zotero sto
 
 ## Constants
 
-- **ZOTERO_DB**: `/path/to/your/zotero.sqlite`
-- **ZOTERO_ATTACHMENT_BASE**: `/path/to/your/zotero/storage/`
+- **ZOTERO_DB**: `/path/to/zotero/zotero.sqlite`
+- **ZOTERO_ATTACHMENT_BASE**: `/path/to/zotero/storage/`
 - Zotero stores linked attachments with `attachments:` prefix in DB; replace with ZOTERO_ATTACHMENT_BASE to get full WSL2 path
 - **MAX_PAGES_PER_READ**: 15 (skip References/Appendix to save tokens)
 - **MAX_BATCH**: 5 (papers per invocation)

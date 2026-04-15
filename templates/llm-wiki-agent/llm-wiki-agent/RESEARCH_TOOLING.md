@@ -1,6 +1,6 @@
 # Research Tooling Strategy
 
-This project is an independent `llm-wiki-agent` repo.
+This project is an independent `noria-agent` repo.
 
 ## Primary Rule
 

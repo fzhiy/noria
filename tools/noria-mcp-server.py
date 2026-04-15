@@ -5,19 +5,29 @@ Includes submit_feedback for append-only feedback ingestion.
 
 Usage: python3 tools/noria-mcp-server.py [port] [wiki-dir]
 """
-import http.server, json, os, re, sys, uuid
+import http.server, json, os, re, secrets, sys, uuid
 from datetime import datetime, timezone
 
 WIKI_DIR = "wiki"
 OUTPUTS_DIR = "outputs/queries"
-VALID_FEEDBACK_KINDS = {"gap", "accuracy", "insight"}
+# Derived paths — computed lazily after CLI override in __main__
+_PROJECT_ROOT = ""
+_KB_DIR = ""
+_BUNDLES_DIR = ""
+VALID_FEEDBACK_KINDS = {"gap", "accuracy", "insight", "save"}
 VALID_ANSWER_STATUSES = {"supported", "partial", "unsupported"}
+VALID_EVIDENCE_VERIFICATION_STATUSES = {"reviewed", "verified", "disputed"}
 MAX_FIELD_LEN = 2000       # per-field character limit
 MAX_ARRAY_ITEMS = 20       # max wiki_pages or citekeys entries
 MAX_REQUEST_BYTES = 65536  # 64KB total request size
 # Simple rate limit: max submissions per minute (per server instance)
 _feedback_timestamps: list = []
+_evidence_query_timestamps: list = []
 MAX_FEEDBACK_PER_MINUTE = 10
+MAX_EVIDENCE_QUERY_PER_MINUTE = MAX_FEEDBACK_PER_MINUTE
+EVIDENCE_QUERY_DEFAULT_LIMIT = 8
+MAX_EVIDENCE_QUERY_LIMIT = 20
+HIGH_RELEVANCE_THRESHOLD = 0.75
 
 
 def _sanitize(val: str, max_len: int = MAX_FIELD_LEN) -> str:
@@ -82,7 +92,9 @@ def _load_signal_index():
 def _build_cache():
     """Walk WIKI_DIR once, cache page metadata + lowercase content for search."""
     _wiki_cache.clear()
-    for root, _, files in os.walk(WIKI_DIR):
+    for root, dirs, files in os.walk(WIKI_DIR):
+        # Exclude archive/ and graph/ directories from indexing
+        dirs[:] = [d for d in dirs if d not in ("archive", "graph")]
         for f in files:
             if not f.endswith(".md"):
                 continue
@@ -126,36 +138,89 @@ def search_wiki(query, limit=5):
     for page in _wiki_cache:
         text_score = sum(page["content_lower"].count(t) for t in terms)
         if text_score > 0:
+            ev = _graph_features.get(page.get("slug", ""), {}).get("evidence_score", 0.3)
             candidates.append({"path": page["path"], "title": page["title"],
                                "summary": page["summary"], "slug": page.get("slug", ""),
-                               "text_score": text_score})
+                               "text_score": text_score, "evidence_score": ev})
 
     if not candidates:
         return []
 
-    # Pass 2: graph reranking (if features available)
+    # Pre-pass: detect superseded pages (frontmatter superseded_by: [...])
+    _superseded = set()
+    for page in _wiki_cache:
+        if "superseded_by:" in page.get("content", ""):
+            m = re.search(r'superseded_by:\s*\[([^\]]+)\]', page["content"])
+            if m and m.group(1).strip():
+                _superseded.add(page.get("slug", ""))
+
+    # Pass 2: Reciprocal Rank Fusion (Cormack et al. 2009, k=60)
+    # Standard RRF: score = Σ 1/(k + rank_i) across independent signal rankings
     top_slugs = {c["slug"] for c in sorted(candidates, key=lambda x: -x["text_score"])[:20]}
+
+    # Compute per-candidate signal values for independent ranking
     for c in candidates:
         feat = _graph_features.get(c["slug"], {})
-        # Citation overlap with top results
         overlap = 0.0
-        co = feat.get("citation_overlap", {})
-        for peer, jaccard in co.items():
+        for peer, jaccard in feat.get("citation_overlap", {}).items():
             if peer in top_slugs:
                 overlap += jaccard
-        overlap = min(overlap, 3.0)
-        bridge = feat.get("bridge_score", 0) * 2  # scale to match bundle
-        centrality = feat.get("centrality", 0)
-        demand = _demand_prior.get(c["slug"], 0)
-        demand_prior = min(demand / 5.0, 1.0)  # 5 signals = full weight
-        # Weighted rerank (aligned with kb-topic-bundle.ts formula)
-        c["score"] = (c["text_score"] * 0.55
-                      + overlap * 20 * 0.20
-                      + bridge * 10 * 0.10
-                      + centrality * 10 * 0.03
-                      + demand_prior * 0.12)
+        c["_overlap"] = min(overlap, 3.0)
+        aa_sum = 0.0
+        for peer, score in feat.get("adamic_adar", {}).items():
+            if peer in top_slugs:
+                aa_sum += score
+        c["_aa"] = min(aa_sum, 3.0)
+        c["_demand"] = min(_demand_prior.get(c["slug"], 0) / 5.0, 1.0)
+
+    # Standard RRF with 1-based ranks; zero-signal items excluded from that signal's ranking
+    k = 60
+
+    def rrf_rank_map(signal_key):
+        """Build 1-based rank map, excluding candidates with zero signal value."""
+        active = [(i, candidates[i].get(signal_key, 0)) for i in range(len(candidates)) if candidates[i].get(signal_key, 0) > 0]
+        active.sort(key=lambda x: -x[1])
+        return {idx: rank + 1 for rank, (idx, _) in enumerate(active)}  # 1-based
+
+    rm_text = rrf_rank_map("text_score")
+    rm_overlap = rrf_rank_map("_overlap")
+    rm_aa = rrf_rank_map("_aa")
+    rm_demand = rrf_rank_map("_demand")
+
+    for i, c in enumerate(candidates):
+        rrf = 0.0
+        # Only contribute to score if candidate appears in that signal's ranking
+        if i in rm_text: rrf += 1.0 / (k + rm_text[i])
+        if i in rm_overlap: rrf += 1.0 / (k + rm_overlap[i])
+        if i in rm_aa: rrf += 1.0 / (k + rm_aa[i])
+        if i in rm_demand: rrf += 1.0 / (k + rm_demand[i])
+        c["score"] = rrf
+        # Superseded pages get 30% penalty
+        if c["slug"] in _superseded:
+            c["score"] *= 0.7
+
+    # Clean up internal signal fields
+    for c in candidates:
+        c.pop("_overlap", None)
+        c.pop("_aa", None)
+        c.pop("_demand", None)
 
     candidates.sort(key=lambda x: -x["score"])
+
+    # Pass 3: type affinity — boost same-type pages when top-5 shows a dominant type
+    type_counts = {}
+    for c in candidates[:5]:
+        p = c["path"]
+        t = "source" if p.startswith("sources/") else "concept" if p.startswith("concepts/") else "synthesis" if p.startswith("synthesis/") else None
+        if t:
+            type_counts[t] = type_counts.get(t, 0) + 1
+    dominant_type = max(type_counts, key=type_counts.get) if type_counts else None
+    if dominant_type and type_counts.get(dominant_type, 0) >= 3:
+        prefix = {"source": "sources/", "concept": "concepts/", "synthesis": "synthesis/"}[dominant_type]
+        for c in candidates[5:]:
+            if c["path"].startswith(prefix):
+                c["score"] *= 1.05
+        candidates.sort(key=lambda x: -x["score"])
 
     # Concept backfill: top source hits inject their linked concept/synthesis pages
     # This surfaces structural neighbors that keyword search might miss
@@ -178,6 +243,23 @@ def search_wiki(query, limit=5):
                 "path": peer_page["path"], "title": peer_page["title"],
                 "summary": peer_page["summary"], "slug": peer,
                 "score": ref_score * jaccard * 0.6,  # discounted by overlap strength
+                "evidence_score": _graph_features.get(peer, {}).get("evidence_score", 0.3),
+            })
+            existing_slugs.add(peer)
+
+        # Adamic-Adar backfill: surface topologically close pages missed by citation overlap
+        for peer, aa_score in feat.get("adamic_adar", {}).items():
+            if aa_score < 0.25 or peer in existing_slugs:
+                continue
+            peer_page = backfill_cache.get(peer)
+            if not peer_page or not (peer_page["path"].startswith("concepts/") or peer_page["path"].startswith("synthesis/")):
+                continue
+            ref_score = next((c["score"] for c in candidates if c["slug"] == src_slug), 0)
+            candidates.append({
+                "path": peer_page["path"], "title": peer_page["title"],
+                "summary": peer_page["summary"], "slug": peer,
+                "score": ref_score * aa_score * 0.4,  # lower discount than citation overlap
+                "evidence_score": _graph_features.get(peer, {}).get("evidence_score", 0.3),
             })
             existing_slugs.add(peer)
 
@@ -187,6 +269,266 @@ def search_wiki(query, limit=5):
         c.pop("text_score", None)
         c.pop("slug", None)
     return candidates[:limit]
+
+
+def _extract_frontmatter_token(content, field):
+    """Extract a simple single-token frontmatter value from cached page content."""
+    m = re.search(rf'^{re.escape(field)}:\s*(\S+)', content, re.MULTILINE)
+    return m.group(1).strip() if m else ""
+
+
+def _strip_frontmatter(content):
+    """Remove YAML frontmatter so evidence matching prefers body sections."""
+    return re.sub(r'^---\n.*?\n---\n?', '', content, flags=re.DOTALL)
+
+
+def _split_sections(content):
+    """Split markdown body into second-level sections for section-local evidence."""
+    body = _strip_frontmatter(content).strip()
+    if not body:
+        return []
+
+    sections = []
+    heading = "body"
+    lines = []
+    for line in body.splitlines():
+        if line.startswith("## "):
+            if lines:
+                sections.append({"heading": heading, "text": "\n".join(lines).strip()})
+            heading = line[3:].strip() or "body"
+            lines = []
+        else:
+            lines.append(line)
+    if lines:
+        sections.append({"heading": heading, "text": "\n".join(lines).strip()})
+    return sections
+
+
+def _claim_terms(claim):
+    """Tokenize a claim into stable keyword terms for cache-local matching."""
+    stopwords = {
+        "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in",
+        "into", "is", "of", "on", "or", "that", "the", "their", "this", "to",
+        "under", "using", "via", "with",
+    }
+    seen = set()
+    terms = []
+    for token in re.findall(r'[a-z0-9]+', claim.lower()):
+        if len(token) <= 1 or token in stopwords or token in seen:
+            continue
+        seen.add(token)
+        terms.append(token)
+    return terms
+
+
+def _count_term_matches(text, term):
+    return len(re.findall(rf'\b{re.escape(term)}\b', text))
+
+
+def _match_stats(text, terms, phrase):
+    counts = {term: _count_term_matches(text, term) for term in terms}
+    unique_hits = sum(1 for count in counts.values() if count > 0)
+    total_hits = sum(counts.values())
+    phrase_hit = 1 if phrase and phrase in text else 0
+    raw_score = total_hits + (unique_hits * 2) + (phrase_hit * max(len(terms), 1))
+    return {
+        "counts": counts,
+        "unique_hits": unique_hits,
+        "total_hits": total_hits,
+        "phrase_hit": phrase_hit,
+        "raw_score": raw_score,
+    }
+
+
+def _best_matching_section(content, terms, phrase):
+    best = None
+    for section in _split_sections(content):
+        stats = _match_stats(section["text"].lower(), terms, phrase)
+        if stats["raw_score"] <= 0:
+            continue
+        if best is None or stats["raw_score"] > best["stats"]["raw_score"]:
+            best = {"heading": section["heading"], "text": section["text"], "stats": stats}
+    return best
+
+
+def _evidence_relevance(page_stats, section_stats, term_count):
+    term_count = max(term_count, 1)
+    coverage = section_stats["unique_hits"] / term_count
+    density = min(section_stats["total_hits"] / term_count, 1.0)
+    phrase_bonus = 0.1 if section_stats["phrase_hit"] else 0.0
+    page_bonus = min(page_stats["unique_hits"] / term_count, 1.0) * 0.1
+    return round(min(1.0, (coverage * 0.55) + (density * 0.25) + phrase_bonus + page_bonus), 2)
+
+
+def _first_passage(text, limit=200):
+    clean = re.sub(r'\s+', ' ', text).strip()
+    return clean[:limit]
+
+
+def _classify_evidence_stance(claim, passage, verification_status):
+    """Best-effort support/conflict routing for claim-level evidence."""
+    if verification_status == "disputed":
+        return "conflict"
+
+    positive_terms = {
+        "improve", "improves", "improved", "improvement", "better", "boost",
+        "gain", "gains", "increase", "increases", "outperform", "outperforms",
+        "recover", "recovery", "robust", "robustness", "success",
+    }
+    negative_terms = {
+        "challenge", "challenges", "contradict", "contradiction", "degrade",
+        "degrades", "degradation", "drop", "drops", "fail", "fails", "failing",
+        "limited", "limitation", "limitations", "negative", "unstable", "worse",
+        "without", "not",
+    }
+
+    claim_lower = claim.lower()
+    passage_lower = passage.lower()
+    claim_positive = sum(claim_lower.count(term) for term in positive_terms)
+    claim_negative = sum(claim_lower.count(term) for term in negative_terms)
+    passage_positive = sum(passage_lower.count(term) for term in positive_terms)
+    passage_negative = sum(passage_lower.count(term) for term in negative_terms)
+
+    if claim_positive > claim_negative and passage_negative > passage_positive:
+        return "conflict"
+    if claim_negative > claim_positive and passage_positive > passage_negative:
+        return "conflict"
+    return "support"
+
+
+def evidence_query(claim, max_evidence=EVIDENCE_QUERY_DEFAULT_LIMIT):
+    """Search reviewed wiki pages for supporting or conflicting evidence for a claim."""
+    import time
+
+    now_ts = time.time()
+    _evidence_query_timestamps[:] = [t for t in _evidence_query_timestamps if now_ts - t < 60]
+    if len(_evidence_query_timestamps) >= MAX_EVIDENCE_QUERY_PER_MINUTE:
+        return {
+            "status": "unsupported",
+            "evidence": [],
+            "conflicts": [],
+            "coverage": {"total_matches": 0, "reviewed_matches": 0},
+            "missing": ["rate limit exceeded"],
+            "confidence": "low",
+            "note": f"Rate limit exceeded: max {MAX_EVIDENCE_QUERY_PER_MINUTE} evidence queries per minute",
+        }
+    _evidence_query_timestamps.append(now_ts)
+
+    safe_claim = _sanitize(claim)
+    if not safe_claim:
+        return {
+            "status": "unsupported",
+            "evidence": [],
+            "conflicts": [],
+            "coverage": {"total_matches": 0, "reviewed_matches": 0},
+            "missing": ["claim is required"],
+            "confidence": "low",
+            "note": "Only reviewed/verified/disputed pages included.",
+        }
+
+    try:
+        max_evidence = int(max_evidence)
+    except (TypeError, ValueError):
+        max_evidence = EVIDENCE_QUERY_DEFAULT_LIMIT
+    max_evidence = max(1, min(max_evidence, MAX_EVIDENCE_QUERY_LIMIT))
+
+    terms = _claim_terms(safe_claim)
+    if not terms:
+        terms = [safe_claim.lower()]
+    phrase = safe_claim.lower()
+    min_unique_hits = 1 if len(terms) <= 2 else 2
+
+    support_items = []
+    conflict_items = []
+    total_matches = 0
+    reviewed_matches = 0
+    excluded_unreviewed = 0
+    excluded_missing_status = 0
+
+    for page in _wiki_cache:
+        body = _strip_frontmatter(page["content"])
+        page_text = f"{page.get('title', '')}\n{body}".lower()
+        page_stats = _match_stats(page_text, terms, phrase)
+        if page_stats["raw_score"] <= 0:
+            continue
+        if page_stats["unique_hits"] < min_unique_hits and not page_stats["phrase_hit"]:
+            continue
+
+        total_matches += 1
+        verification_status = _extract_frontmatter_token(page["content"], "verification_status")
+        if verification_status == "unreviewed":
+            excluded_unreviewed += 1
+            continue
+        if verification_status not in VALID_EVIDENCE_VERIFICATION_STATUSES:
+            excluded_missing_status += 1
+            continue
+
+        reviewed_matches += 1
+        best_section = _best_matching_section(page["content"], terms, phrase)
+        if not best_section:
+            continue
+        if best_section["stats"]["unique_hits"] < min_unique_hits and not best_section["stats"]["phrase_hit"]:
+            continue
+
+        provenance = _extract_frontmatter_token(page["content"], "provenance") or "unknown"
+        passage = _first_passage(best_section["text"])
+        item = {
+            "slug": page["slug"],
+            "title": page["title"],
+            "path": page["path"],
+            "provenance": provenance,
+            "verification_status": verification_status,
+            "relevance_score": _evidence_relevance(page_stats, best_section["stats"], len(terms)),
+            "key_passage": passage,
+        }
+        if _classify_evidence_stance(safe_claim, passage, verification_status) == "conflict":
+            conflict_items.append(item)
+        else:
+            support_items.append(item)
+
+    support_items.sort(key=lambda item: -item["relevance_score"])
+    conflict_items.sort(key=lambda item: -item["relevance_score"])
+
+    evidence = support_items[:max_evidence]
+    conflicts = conflict_items[:max_evidence]
+    high_relevance_items = [item for item in evidence if item["relevance_score"] >= HIGH_RELEVANCE_THRESHOLD]
+
+    if len(high_relevance_items) >= 2:
+        status = "supported"
+    elif evidence:
+        status = "partial"
+    else:
+        status = "unsupported"
+
+    if len(evidence) >= 3:
+        confidence = "high"
+    elif evidence:
+        confidence = "medium"
+    else:
+        confidence = "low"
+
+    missing = []
+    if total_matches == 0:
+        missing.append("no matching wiki pages found for this claim")
+    elif reviewed_matches == 0:
+        missing.append("matching pages exist but none are reviewed/verified/disputed")
+        missing.append("no section-level evidence for this claim")
+    elif not evidence and not conflicts:
+        missing.append("no section-level evidence for this claim")
+
+    excluded_note = f"{excluded_unreviewed} unreviewed pages excluded"
+    if excluded_missing_status:
+        excluded_note += f"; {excluded_missing_status} pages without verification_status excluded"
+
+    return {
+        "status": status,
+        "evidence": evidence,
+        "conflicts": conflicts,
+        "coverage": {"total_matches": total_matches, "reviewed_matches": reviewed_matches},
+        "missing": missing,
+        "confidence": confidence,
+        "note": f"Only reviewed/verified/disputed pages included. {excluded_note}.",
+    }
 
 
 def get_doc(path):
@@ -297,7 +639,49 @@ def ask_wiki(question, max_pages=5):
         for h in hits:
             f.write(f"- {h['title']} (wiki/{h['path']}, score={h['score']})\n")
 
+    # Append lightweight query signal to signal-index.jsonl for demand-prior enrichment
+    si_path = os.path.join(os.path.dirname(WIKI_DIR), ".kb", "signal-index.jsonl")
+    try:
+        top_slug = hits[0].get("path", "").replace(".md", "").split("/")[-1] if hits else ""
+        anchor_slugs = [h.get("path", "").replace(".md", "").split("/")[-1] for h in hits[:5]]
+        signal = {"ts": now.strftime("%Y-%m-%d"), "kind": "query", "topic": top_slug,
+                  "anchors": anchor_slugs, "count": 1}
+        os.makedirs(os.path.dirname(si_path), exist_ok=True)
+        with open(si_path, "a") as sf:
+            sf.write(json.dumps(signal) + "\n")
+    except Exception:
+        pass  # signal-index is best-effort, never fail the query
+
     return "\n".join(parts)
+
+
+def _append_service_index(record: dict):
+    """Append a record to .kb/service-index.jsonl (append-only)."""
+    idx_path = os.path.join(_KB_DIR, "service-index.jsonl")
+    os.makedirs(_KB_DIR, exist_ok=True)
+    with open(idx_path, "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+def get_service_response(args):
+    """Retrieve service response bundle by request_id."""
+    request_id = _sanitize(args.get("request_id", ""))[:50]
+    if not request_id:
+        return "request_id is required"
+    # Validate request_id format (srv-{hex12})
+    if not re.match(r'^srv-[0-9a-f]{12}$', request_id):
+        return f"Invalid request_id format: {request_id}. Expected: srv-{{hex12}}"
+    # Scan outputs/bundles/ for exact token match in filename
+    if not os.path.isdir(_BUNDLES_DIR):
+        return f"No bundles directory found. request_id={request_id} has no response yet."
+    for f in sorted(os.listdir(_BUNDLES_DIR), reverse=True):
+        if f.endswith(".json") and f"-{request_id}-" in f:
+            try:
+                content = open(os.path.join(_BUNDLES_DIR, f)).read()
+                return content
+            except Exception as e:
+                return f"Error reading bundle: {e}"
+    return f"No response found for request_id={request_id}. It may still be processing."
 
 
 def submit_feedback(args):
@@ -327,9 +711,18 @@ def submit_feedback(args):
     if answer_status not in VALID_ANSWER_STATUSES:
         answer_status = "partial"
 
+    # New service fields (optional, logging/metadata only)
+    origin_project = _sanitize(args.get("origin_project", ""))[:100]
+    severity_hint = args.get("severity_hint", "feedback")
+    if severity_hint not in ("lookup", "feedback", "direction_change"):
+        severity_hint = "feedback"
+
     # Sanitize array fields — strict character whitelist
     wiki_pages = [_sanitize_item(p) for p in (args.get("wiki_pages") or [])[:MAX_ARRAY_ITEMS] if _sanitize_item(p)]
     citekeys = [_sanitize_item(c) for c in (args.get("citekeys") or [])[:MAX_ARRAY_ITEMS] if _sanitize_item(c)]
+
+    # Generate request_id (server-side, high-entropy, non-guessable)
+    request_id = f"srv-{secrets.token_hex(6)}"
 
     # Generate safe filename — server-controlled, no path traversal
     now = datetime.now(timezone.utc)
@@ -357,10 +750,17 @@ def submit_feedback(args):
         "type: query",
         "provenance: query-derived",
         f"feedback_kind: {kind}",
+        f"request_id: {request_id}",
         "review_status: pending",
         f"answer_status: {answer_status}",
         f"wiki_pages: {wp_yaml}",
         f"citekeys: {ck_yaml}",
+    ]
+    if origin_project:
+        lines.append(f"origin_project: {origin_project}")
+    if severity_hint != "feedback":
+        lines.append(f"severity_hint: {severity_hint}")
+    lines += [
         f"created: {now.strftime('%Y-%m-%d')}",
         f"updated: {now.strftime('%Y-%m-%d')}",
         "---",
@@ -391,7 +791,16 @@ def submit_feedback(args):
     with open(filepath, "w") as f:
         f.write("\n".join(lines) + "\n")
 
-    return f"Feedback saved: {filename} (kind={kind}, status=pending)"
+    # Append to service-index (pending record with feedback_file as join key)
+    _append_service_index({
+        "request_id": request_id,
+        "feedback_file": filename,
+        "origin_project": origin_project or "unknown",
+        "status": "pending",
+        "created": now.isoformat(),
+    })
+
+    return f"Feedback saved: {filename} (kind={kind}, request_id={request_id})"
 
 
 def list_concepts():
@@ -575,22 +984,48 @@ class MCPHandler(http.server.BaseHTTPRequestHandler):
                     },
                 },
                 {
+                    "name": "evidence_query",
+                    "description": "Find reviewed evidence supporting or opposing a claim. Returns only reviewed/verified/disputed pages with provenance metadata and coverage counts.",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "claim": {"type": "string", "description": "Claim to test against reviewed wiki evidence"},
+                            "max_evidence": {"type": "integer", "description": "Max evidence items to return per stance (default 8, max 20)"},
+                        },
+                        "required": ["claim"],
+                    },
+                },
+                {
                     "name": "submit_feedback",
-                    "description": "Submit feedback on a wiki query (gap/accuracy/insight). Append-only to outputs/queries/.",
+                    "description": "Submit feedback on a wiki query (gap/accuracy/insight/save). Append-only to outputs/queries/.",
                     "inputSchema": {
                         "type": "object",
                         "properties": {
                             "query_summary": {"type": "string", "description": "Brief summary of the question asked"},
                             "answer_summary": {"type": "string", "description": "Brief summary of the answer received"},
-                            "feedback_kind": {"type": "string", "enum": ["gap", "accuracy", "insight"],
-                                "description": "gap=wiki lacks coverage, accuracy=wiki content may be wrong, insight=new cross-paper connection"},
+                            "feedback_kind": {"type": "string", "enum": ["gap", "accuracy", "insight", "save"],
+                                "description": "gap=wiki lacks coverage, accuracy=wiki content may be wrong, insight=new cross-paper connection, save=this Q&A is valuable enough to consider promoting to a concept/synthesis page"},
                             "feedback_detail": {"type": "string", "description": "Additional detail about the feedback"},
                             "wiki_pages": {"type": "array", "items": {"type": "string"}, "description": "Wiki pages consulted"},
                             "citekeys": {"type": "array", "items": {"type": "string"}, "description": "Source citekeys referenced"},
                             "answer_status": {"type": "string", "enum": ["supported", "partial", "unsupported"],
                                 "description": "How well the wiki supported the answer"},
+                            "origin_project": {"type": "string", "description": "Submitting project name (metadata/logging only)"},
+                            "severity_hint": {"type": "string", "enum": ["lookup", "feedback", "direction_change"],
+                                "description": "Client hint (logging only, does not affect NORIA review routing)"},
                         },
                         "required": ["query_summary", "feedback_kind"],
+                    },
+                },
+                {
+                    "name": "get_service_response",
+                    "description": "Retrieve a service response bundle by request_id (returned from submit_feedback).",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "request_id": {"type": "string", "description": "The request_id returned by submit_feedback"},
+                        },
+                        "required": ["request_id"],
                     },
                 },
                 {
@@ -651,8 +1086,14 @@ class MCPHandler(http.server.BaseHTTPRequestHandler):
                 mp = min(int(args.get("max_pages", 5)), 10)
                 result_text = ask_wiki(args.get("question", ""), mp)
                 content = [{"type": "text", "text": result_text}]
+            elif name == "evidence_query":
+                result = evidence_query(args.get("claim", ""), args.get("max_evidence", EVIDENCE_QUERY_DEFAULT_LIMIT))
+                content = [{"type": "text", "text": json.dumps(result, indent=2)}]
             elif name == "submit_feedback":
                 result_text = submit_feedback(args)
+                content = [{"type": "text", "text": result_text}]
+            elif name == "get_service_response":
+                result_text = get_service_response(args)
                 content = [{"type": "text", "text": result_text}]
             elif name == "list_concepts":
                 concepts = list_concepts()
@@ -718,6 +1159,10 @@ if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 3849
     if len(sys.argv) > 2:
         WIKI_DIR = sys.argv[2]
-    print(f"NORIA MCP server on :{port} wiki={WIKI_DIR}")
+    # Compute derived paths AFTER WIKI_DIR override
+    _PROJECT_ROOT = os.path.dirname(os.path.abspath(WIKI_DIR))
+    _KB_DIR = os.path.join(_PROJECT_ROOT, ".kb")
+    _BUNDLES_DIR = os.path.join(_PROJECT_ROOT, "outputs", "bundles")
+    print(f"NORIA MCP server on :{port} wiki={WIKI_DIR} kb={_KB_DIR}")
     _build_cache()
     http.server.HTTPServer(("127.0.0.1", port), MCPHandler).serve_forever()

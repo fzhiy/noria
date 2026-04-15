@@ -596,8 +596,8 @@ def sync_offline(json_path: str, collection_name: str = None) -> dict:
     return {"status": "ok", **stats}
 
 
-ZOTERO_DB = Path("/path/to/your/zotero.sqlite")
-ZOTERO_ATTACHMENT_BASE = Path("/path/to/your/zotero/storage")
+ZOTERO_DB = Path("/path/to/zotero/zotero.sqlite")
+ZOTERO_ATTACHMENT_BASE = Path("/path/to/zotero/storage")
 
 
 def show_pdf_paths():
@@ -644,7 +644,7 @@ def show_pdf_paths():
             elif att_path and att_path.startswith("storage:"):
                 rel = att_path[len("storage:"):]
                 # Standard Zotero storage layout
-                full = Path("/path/to/your/zotero/storage") / zotero_key / rel
+                full = Path("/path/to/zotero/storage") / zotero_key / rel
                 if full.exists():
                     result[citekey] = str(full)
                     break

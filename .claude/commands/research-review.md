@@ -1,11 +1,12 @@
 ---
 name: research-review
 description: Get an external deep review of the wiki architecture, workflow, or research artifacts. Use when you want critical feedback from GPT with maximum reasoning depth.
-argument-hint: [topic-or-scope] [-- effort: lite|standard|extended|heavy|beast]
+argument-hint: [topic-or-scope] [-- effort: lite|standard|extended|heavy|beast] [-- reviewer: codex|oracle-pro]
 allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit
 ---
 
 > **Effort**: Default `extended`. See `shared/effort-contract.md` for all tiers.
+> **Reviewer**: Default `codex` (GPT-5.4 xhigh). Use `-- reviewer: oracle-pro` for GPT-5.4 Pro. See `shared/reviewer-routing.md`.
 
 
 # Research Review

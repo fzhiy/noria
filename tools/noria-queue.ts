@@ -150,13 +150,7 @@ interface ValidationResult {
   warnings: string[];
 }
 
-/** Extract the YAML frontmatter block (between --- delimiters) */
-function extractFrontmatter(content: string): string {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  return match ? match[1] : "";
-}
-
-function validateForPromotion(content: string, slug: string, pageType: string): ValidationResult {
+function validateForPromotion(content: string, slug: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -166,21 +160,17 @@ function validateForPromotion(content: string, slug: string, pageType: string): 
     errors.push(`Unknown verification_status: "${status}"`);
   }
 
-  // Fail-closed: claims field is REQUIRED for source pages only
-  // Concepts and synthesis don't carry structured claims
-  if (pageType === "sources") {
-    const frontmatter = extractFrontmatter(content);
-    const hasClaims = /^claims:\s*$/m.test(frontmatter) || /^claims:\s*\[/m.test(frontmatter);
-    const hasClaimItems = /^\s+-\s+text:/m.test(frontmatter);
-    if (!hasClaims || !hasClaimItems) {
-      errors.push(`Missing or empty 'claims' field in frontmatter. Source pages must have at least one claim with text + citekey.`);
-    } else {
-      // Verify each claim has citekey (within frontmatter only)
-      const claimTexts = frontmatter.match(/^\s+-\s+text:\s*.+$/gm) || [];
-      const claimCitekeys = frontmatter.match(/^\s+citekey:\s*.+$/gm) || [];
-      if (claimCitekeys.length < claimTexts.length) {
-        errors.push(`${claimTexts.length} claim(s) found but only ${claimCitekeys.length} have citekey. Every claim needs a citekey.`);
-      }
+  // Fail-closed: claims field is REQUIRED for promotion
+  const hasClaims = /^claims:\s*$/m.test(content) || /^claims:\s*\[/m.test(content);
+  const hasClaimItems = /^\s+-\s+text:/m.test(content);
+  if (!hasClaims || !hasClaimItems) {
+    errors.push(`Missing or empty 'claims' field. Source pages must have at least one claim with text + citekey.`);
+  } else {
+    // Verify each claim has citekey
+    const claimTexts = content.match(/^\s+-\s+text:\s*.+$/gm) || [];
+    const claimCitekeys = content.match(/^\s+citekey:\s*.+$/gm) || [];
+    if (claimCitekeys.length < claimTexts.length) {
+      errors.push(`${claimTexts.length} claim(s) found but only ${claimCitekeys.length} have citekey. Every claim needs a citekey.`);
     }
   }
 
@@ -254,7 +244,7 @@ function cmdApprove(slug: string, skipLint = false) {
   }
 
   // Validate BEFORE modifying anything
-  const validation = validateForPromotion(item.content, slug, item.type);
+  const validation = validateForPromotion(item.content, slug);
   if (!validation.ok) {
     console.error(`Validation failed for "${slug}":`);
     for (const e of validation.errors) console.error(`  ERROR: ${e}`);
@@ -267,73 +257,24 @@ function cmdApprove(slug: string, skipLint = false) {
   if (!existsSync(targetDir)) mkdirSync(targetDir, { recursive: true });
   const targetPath = join(targetDir, `${slug}.md`);
 
+  if (existsSync(targetPath)) {
+    console.error(`Error: "${slug}" already exists in wiki/${item.type}/`);
+    process.exit(1);
+  }
+
   // Set verification_status to reviewed (line-level edit, preserves all other YAML)
   let content = item.content;
   content = setFrontmatterField(content, "verification_status", "reviewed");
 
-  const isUpdate = existsSync(targetPath);
-
-  if (isUpdate) {
-    const existingContent = readFileSync(targetPath, "utf-8");
-
-    // Refuse overwrite when existing page contains user-verified content
-    if (/provenance:\s*user-verified/m.test(existingContent)) {
-      console.error(`Error: "${slug}" contains user-verified content. Manual merge required.`);
-      console.error(`  Inbox draft: ${item.path}`);
-      console.error(`  Wiki page:   ${targetPath}`);
-      console.error(`  Please merge manually, then run: noria-queue reject ${slug} --reason "merged manually"`);
-      process.exit(1);
-    }
-
-    // Merge path: backup existing page, append new content sections
-    const backupPath = join(WIKI_DIR, "archive", `${slug}.pre-update.md`);
-    const archiveDir = join(WIKI_DIR, "archive");
-    if (!existsSync(archiveDir)) mkdirSync(archiveDir, { recursive: true });
-    copyFileSync(targetPath, backupPath);
-    gitAdd(backupPath);
-
-    // Append-merge: keep existing body, append new sections from inbox draft
-    const existingBody = existingContent.replace(/^---\n[\s\S]*?\n---\n/, "");
-    const inboxBody = content.replace(/^---\n[\s\S]*?\n---\n/, "");
-    // Use inbox frontmatter (updated metadata) + merged body
-    const inboxFrontmatter = content.match(/^---\n[\s\S]*?\n---\n/)?.[0] || "";
-    content = inboxFrontmatter + existingBody.trimEnd() + "\n\n<!-- Updated via noria-queue -->\n" + inboxBody;
-  }
-
-  // Write to wiki
+  // Write to wiki (copy content, don't parse/reserialize)
   writeFileSync(targetPath, content, "utf-8");
 
   // Remove from inbox
   gitRm(item.path);
 
-  // Update wiki/index.md with new entry (new pages only, not updates)
-  if (!isUpdate) {
-    const indexPath = join(WIKI_DIR, "index.md");
-    if (existsSync(indexPath)) {
-      let indexContent = readFileSync(indexPath, "utf-8");
-      const title = getFrontmatterValue(content, "title") || slug;
-      const sectionHeader = item.type === "sources" ? "## Sources"
-        : item.type === "concepts" ? "## Concepts"
-        : "## Synthesis";
-      const entry = `- [[${slug}]] — ${title}`;
-      // Append under the correct section if it exists
-      if (indexContent.includes(sectionHeader)) {
-        indexContent = indexContent.replace(
-          new RegExp(`(${sectionHeader.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\n]*\n)`),
-          `$1${entry}\n`
-        );
-      } else {
-        indexContent += `\n${sectionHeader}\n${entry}\n`;
-      }
-      writeFileSync(indexPath, indexContent, "utf-8");
-      gitAdd(indexPath);
-    }
-  }
-
   // Stage new file + commit
   gitAdd(targetPath);
-  const commitVerb = isUpdate ? "update" : "approve";
-  gitCommit(`[noria-${commitVerb}] ${slug}`);
+  gitCommit(`[noria-approve] ${slug}`);
 
   // Run lint (best-effort, non-blocking)
   if (!skipLint) {
@@ -358,11 +299,7 @@ function cmdApprove(slug: string, skipLint = false) {
     });
   } catch { /* graph recompute is non-critical */ }
 
-  if (isUpdate) {
-    console.log(`Updated: ${slug} → wiki/${item.type}/${slug}.md (previous version archived)`);
-  } else {
-    console.log(`Approved: ${slug} → wiki/${item.type}/${slug}.md`);
-  }
+  console.log(`Approved: ${slug} → wiki/${item.type}/${slug}.md`);
 }
 
 function cmdReject(slug: string, reason: string) {

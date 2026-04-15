@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use NORIA, please cite it using the metadata from this file."
+title: "NORIA"
+type: software
+authors:
+  - name: "NORIA Contributors"
+license: "MIT"
+url: "https://github.com/fzhiy/noria"
+repository-code: "https://github.com/fzhiy/noria"
+version: "0.1.0"
+date-released: 2026-04-15

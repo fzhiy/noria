@@ -17,10 +17,10 @@ import { readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync } from 
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WIKI_DIR = resolve(PROJECT_ROOT, "wiki");
+export const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+export const WIKI_DIR = resolve(PROJECT_ROOT, "wiki");
 const KB_DIR = resolve(PROJECT_ROOT, ".kb");
-const OUTPUT_DIR = resolve(PROJECT_ROOT, "outputs", "bundles");
+export const OUTPUT_DIR = resolve(PROJECT_ROOT, "outputs", "bundles");
 
 // ── Graph features for reranking ──────────────────────────────────────
 interface GraphFeature {
@@ -64,7 +64,7 @@ function parseArgs(argv: string[]): CliArgs {
 }
 
 // ── Page parsing ──────────────────────────────────────────────────────
-interface PageData {
+export interface PageData {
   slug: string;
   dir: string; // sources, concepts, synthesis
   title: string;
@@ -116,7 +116,7 @@ function parsePage(path: string, dir: string): PageData | null {
   };
 }
 
-function loadAllPages(): PageData[] {
+export function loadAllPages(): PageData[] {
   const pages: PageData[] = [];
   for (const dir of ["sources", "concepts", "synthesis"]) {
     const dirPath = resolve(WIKI_DIR, dir);
@@ -178,7 +178,7 @@ function scoreRelevance(page: PageData, terms: string[], topSlugs?: Set<string>)
 }
 
 // ── Bundle generation ─────────────────────────────────────────────────
-interface TopicBundle {
+export interface TopicBundle {
   topic: string;
   timestamp: string;
   concepts: { slug: string; title: string; provenance: string; summary: string; wikilinks: string[] }[];
@@ -189,7 +189,7 @@ interface TopicBundle {
   stats: { totalPages: number; conceptCount: number; sourceCount: number; claimCount: number };
 }
 
-function generateBundle(topic: string, pages: PageData[], maxSources: number): TopicBundle {
+export function generateBundle(topic: string, pages: PageData[], maxSources: number): TopicBundle {
   const terms = topic.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
 
   // Two-pass scoring: first pass finds top concepts, second pass uses them for citation overlap boost
@@ -300,28 +300,33 @@ function printTextBundle(bundle: TopicBundle) {
   }
 }
 
-// ── Main ──────────────────────────────────────────────────────────────
-const args = parseArgs(process.argv);
-const pages = loadAllPages();
-const bundle = generateBundle(args.topic, pages, args.maxSources);
+// ── Main (CLI entrypoint only — guarded so imports don't trigger side effects) ──
+const _isMain = process.argv[1]?.endsWith("kb-topic-bundle.ts")
+  || process.argv[1]?.endsWith("kb-topic-bundle.js");
 
-if (args.format === "json") {
-  const json = JSON.stringify(bundle, null, 2);
-  console.log(json);
-  if (args.save) {
-    mkdirSync(OUTPUT_DIR, { recursive: true });
-    const slug = args.topic.toLowerCase().replace(/\s+/g, "-").slice(0, 40);
-    const outPath = resolve(OUTPUT_DIR, `${new Date().toISOString().split("T")[0]}-${slug}.json`);
-    writeFileSync(outPath, json, "utf-8");
-    console.error(`Saved to ${outPath}`);
-  }
-} else {
-  printTextBundle(bundle);
-  if (args.save) {
-    mkdirSync(OUTPUT_DIR, { recursive: true });
-    const slug = args.topic.toLowerCase().replace(/\s+/g, "-").slice(0, 40);
-    const outPath = resolve(OUTPUT_DIR, `${new Date().toISOString().split("T")[0]}-${slug}.json`);
-    writeFileSync(outPath, JSON.stringify(bundle, null, 2), "utf-8");
-    console.error(`Saved to ${outPath}`);
+if (_isMain) {
+  const args = parseArgs(process.argv);
+  const pages = loadAllPages();
+  const bundle = generateBundle(args.topic, pages, args.maxSources);
+
+  if (args.format === "json") {
+    const json = JSON.stringify(bundle, null, 2);
+    console.log(json);
+    if (args.save) {
+      mkdirSync(OUTPUT_DIR, { recursive: true });
+      const slug = args.topic.toLowerCase().replace(/\s+/g, "-").slice(0, 40);
+      const outPath = resolve(OUTPUT_DIR, `${new Date().toISOString().split("T")[0]}-${slug}.json`);
+      writeFileSync(outPath, json, "utf-8");
+      console.error(`Saved to ${outPath}`);
+    }
+  } else {
+    printTextBundle(bundle);
+    if (args.save) {
+      mkdirSync(OUTPUT_DIR, { recursive: true });
+      const slug = args.topic.toLowerCase().replace(/\s+/g, "-").slice(0, 40);
+      const outPath = resolve(OUTPUT_DIR, `${new Date().toISOString().split("T")[0]}-${slug}.json`);
+      writeFileSync(outPath, JSON.stringify(bundle, null, 2), "utf-8");
+      console.error(`Saved to ${outPath}`);
+    }
   }
 }

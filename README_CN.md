@@ -44,18 +44,14 @@ cd noria
 # 启动 Claude Code
 claude
 
-# 添加第一篇论文
-/kb-sync s2 "your research topic" --limit 5
+# 查看项目概览
+/wiki-help
 
-# 编译到 inbox（需人工审批）
+# 从 Semantic Scholar 同步最新论文
+/kb-sync s2 "web agent reinforcement learning" --limit 10
+
+# 编译新来源到 wiki
 /kb-compile
-
-# 审阅并批准
-npx tsx tools/noria-queue.ts list
-npx tsx tools/noria-queue.ts approve <slug>
-
-# 启动 MCP 证据服务
-python3 tools/noria-mcp-server.py 3849 wiki
 
 # 检查 wiki 健康状态
 /kb-lint

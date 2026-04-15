@@ -49,13 +49,14 @@ interface CliArgs {
   fieldsOfStudy: string;     // default "Computer Science"
   dryRun: boolean;
   noFilter: boolean;
+  preview: boolean;
 }
 
 function parseArgs(argv: string[]): CliArgs {
   const a: CliArgs = {
     mode: "search", query: "", limit: 10, year: null, minCitations: null,
     pubTypes: "JournalArticle,Conference", fieldsOfStudy: "Computer Science",
-    dryRun: false, noFilter: false,
+    dryRun: false, noFilter: false, preview: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const f = argv[i];
@@ -72,6 +73,7 @@ function parseArgs(argv: string[]): CliArgs {
     else if (f === "--fields") a.fieldsOfStudy = argv[++i] ?? "Computer Science";
     else if (f === "--dry-run") a.dryRun = true;
     else if (f === "--no-filter") a.noFilter = true;
+    else if (f === "--preview") a.preview = true;
     else { console.error(`Unknown flag: ${f}`); process.exit(1); }
   }
   if (!a.query) {
@@ -153,7 +155,7 @@ async function searchPapers(args: CliArgs): Promise<S2Paper[]> {
   if (args.fieldsOfStudy) params.set("fieldsOfStudy", args.fieldsOfStudy);
 
   const url = `${S2_API}/paper/search?${params}`;
-  console.log(`Querying: ${url}\n`);
+  console.error(`[s2] Querying: ${url}`);
   const json = await s2Fetch(url);
   return json.data ?? [];
 }
@@ -378,8 +380,11 @@ async function main() {
 
   if (papers.length === 0) { console.log("No results found."); process.exit(0); }
 
-  console.log(`Found ${papers.length} papers:\n`);
-  papers.forEach((p, i) => displayPaper(p, i + 1));
+  // Human-readable display (suppressed in --preview mode)
+  if (!args.preview) {
+    console.log(`Found ${papers.length} papers:\n`);
+    papers.forEach((p, i) => displayPaper(p, i + 1));
+  }
 
   if (args.dryRun) {
     console.log(`[dry-run] Would save ${papers.length} papers. Exiting.`);
@@ -387,44 +392,60 @@ async function main() {
   }
 
   // Relevance filter (unless --no-filter)
-  let assessRelevance: typeof import("./relevance-filter.js").assessRelevance | null = null;
+  type RelevanceResult = Awaited<ReturnType<typeof import("./relevance-filter.js").assessRelevance>>;
+  let assessRelevanceFn: typeof import("./relevance-filter.js").assessRelevance | null = null;
   if (!args.noFilter) {
     try {
       const mod = await import("./relevance-filter.js");
-      assessRelevance = mod.assessRelevance;
+      assessRelevanceFn = mod.assessRelevance;
     } catch {
-      console.log("  [filter] relevance-filter not available, saving all results.");
+      if (!args.preview) console.log("  [filter] relevance-filter not available, saving all results.");
     }
   }
 
   const dedup = buildDedupIndex();
-  mkdirSync(RAW_S2, { recursive: true });
+  if (!args.preview) mkdirSync(RAW_S2, { recursive: true });
   let saved = 0, skipped = 0, filtered = 0;
+
+  // Preview: collect candidates as JSON. Normal: write files.
+  interface PreviewCandidate {
+    citekey: string; title: string; paperId: string; arxivId?: string;
+    relevance: RelevanceResult | null;
+    duplicate: boolean; duplicateReason?: string;
+  }
+  const candidates: PreviewCandidate[] = [];
 
   for (const paper of papers) {
     const citekey = makeCitekey(paper);
-    const filename = `${slugify(citekey)}.md`;
     const dupReason = isDuplicate(paper, dedup, citekey);
-    if (dupReason) {
-      console.log(`  skip (${dupReason}): ${filename}`);
-      skipped++;
-      continue;
-    }
 
-    // Relevance check
-    if (assessRelevance) {
-      const rel = await assessRelevance(paper.title, paper.abstract ?? "", {
+    let rel: RelevanceResult | null = null;
+    if (assessRelevanceFn && !dupReason) {
+      rel = await assessRelevanceFn(paper.title, paper.abstract ?? "", {
         s2PaperId: paper.paperId,
         arxivId: paper.externalIds?.ArXiv,
         citationCount: paper.citationCount,
-      }, { skipSpecter: true });
-      if (!rel.pass) {
-        console.log(`  skip (${rel.reasons[0] ?? "off-topic"}): ${(paper.title ?? "").slice(0, 60)}...`);
-        filtered++;
-        continue;
-      }
+      }, { skipSpecter: true }); // L3 keyword only
     }
 
+    if (args.preview) {
+      candidates.push({
+        citekey, title: paper.title ?? "", paperId: paper.paperId,
+        arxivId: paper.externalIds?.ArXiv,
+        relevance: rel, duplicate: !!dupReason,
+        duplicateReason: dupReason || undefined,
+      });
+      continue;
+    }
+
+    // Normal save path
+    if (dupReason) { console.log(`  skip (${dupReason}): ${slugify(citekey)}.md`); skipped++; continue; }
+    if (rel && !rel.pass) {
+      console.log(`  skip (${rel.reasons[0] ?? "off-topic"}): ${(paper.title ?? "").slice(0, 60)}...`);
+      filtered++; continue;
+    }
+
+    const filename = `${slugify(citekey)}.md`;
     writeFileSync(resolve(RAW_S2, filename), paperToMarkdown(paper, citekey), "utf-8");
     console.log(`  + ${filename}`);
     dedup.citekeys.add(slugify(citekey));
@@ -433,7 +454,12 @@ async function main() {
     if (paper.externalIds?.ArXiv) dedup.arxivIds.add(paper.externalIds.ArXiv);
     saved++;
   }
-  console.log(`\nFound ${papers.length} papers, saved ${saved} new, skipped ${skipped} duplicates${filtered ? `, filtered ${filtered} off-topic` : ""}.`);
+
+  if (args.preview) {
+    console.log(JSON.stringify(candidates, null, 2));
+  } else {
+    console.log(`\nFound ${papers.length} papers, saved ${saved} new, skipped ${skipped} duplicates${filtered ? `, filtered ${filtered} off-topic` : ""}.`);
+  }
 }
 
 main().catch((err) => { console.error("Fatal error:", err); process.exit(1); });

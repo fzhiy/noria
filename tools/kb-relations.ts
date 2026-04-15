@@ -415,6 +415,120 @@ function cmdFeatures() {
     centrality.set(slug, Math.round((deg / maxIn) * 100) / 100);
   }
 
+  // Adamic-Adar: topological similarity via shared wikilink neighbors
+  // Uses ONLY wikilink edges (not semantic relations like related/supports/contradicts)
+  const wlNeighbors = new Map<string, Set<string>>();
+  const wlDegree = new Map<string, number>();
+  for (const p of pages) {
+    wlNeighbors.set(p.slug, new Set());
+    wlDegree.set(p.slug, 0);
+  }
+  for (const r of relations) {
+    if (r.type !== "wikilink") continue;
+    if (!wlNeighbors.has(r.source)) wlNeighbors.set(r.source, new Set());
+    if (!wlNeighbors.has(r.target)) wlNeighbors.set(r.target, new Set());
+    wlNeighbors.get(r.source)!.add(r.target);
+    wlNeighbors.get(r.target)!.add(r.source);
+  }
+  for (const [slug, nbrs] of wlNeighbors) {
+    wlDegree.set(slug, nbrs.size);
+  }
+
+  // Compute pairwise Adamic-Adar: for pages A,B → Σ 1/log2(wlDegree(z)+1) for common wikilink neighbors z
+  const adamicAdar = new Map<string, Map<string, number>>();
+  for (const p of pages) {
+    const pNbrs = wlNeighbors.get(p.slug);
+    if (!pNbrs || pNbrs.size === 0) continue;
+    // Find all pages that share at least one wikilink neighbor with p
+    const candidates = new Set<string>();
+    for (const z of pNbrs) {
+      for (const other of wlNeighbors.get(z) ?? []) {
+        if (other !== p.slug) candidates.add(other);
+      }
+    }
+    for (const other of candidates) {
+      const oNbrs = wlNeighbors.get(other);
+      if (!oNbrs) continue;
+      // Common wikilink neighbors
+      let aaScore = 0;
+      for (const z of pNbrs) {
+        if (oNbrs.has(z)) {
+          const deg = wlDegree.get(z) ?? 0;
+          if (deg > 0) aaScore += 1 / Math.log2(deg + 1);
+        }
+      }
+      if (aaScore > 0.01) {
+        if (!adamicAdar.has(p.slug)) adamicAdar.set(p.slug, new Map());
+        adamicAdar.get(p.slug)!.set(other, aaScore);
+      }
+    }
+  }
+
+  // Normalize A-A scores per page to [0, 1] and keep top 10
+  const adamicAdarNorm = new Map<string, Record<string, number>>();
+  for (const [slug, peers] of adamicAdar) {
+    const sorted = [...peers.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+    const maxVal = sorted.length > 0 ? sorted[0][1] : 1;
+    const obj: Record<string, number> = {};
+    for (const [k, v] of sorted) {
+      obj[k] = Math.round((v / maxVal) * 100) / 100;
+    }
+    adamicAdarNorm.set(slug, obj);
+  }
+
+  // Evidence score: trust × impact per page (DORA-aware: citation_count ≠ quality)
+  const currentYear = new Date().getFullYear();
+  const evidenceScore = new Map<string, number>();
+  // Per-page raw frontmatter for scoring
+  const pageFm = new Map<string, Record<string, any>>();
+  for (const dir of ["sources", "concepts", "synthesis"]) {
+    const dirPath = resolve(WIKI_DIR, dir);
+    if (!existsSync(dirPath)) continue;
+    for (const f of readdirSync(dirPath)) {
+      if (!f.endsWith(".md")) continue;
+      const content = readFileSync(resolve(dirPath, f), "utf-8");
+      pageFm.set(f.replace(/\.md$/, ""), parseFrontmatter(content));
+    }
+  }
+
+  // Compute evidence_score for source pages
+  for (const p of pages) {
+    if (p.type !== "source") continue;
+    const fm = pageFm.get(p.slug) ?? {};
+    // Trust dimension
+    const provWeights: Record<string, number> = {
+      "user-verified": 1.0, "source-derived": 0.8, "llm-derived": 0.5, "social-lead": 0.2
+    };
+    const provW = provWeights[fm.provenance as string] ?? 0.5;
+    const venueFactor = fm.venue_verified === "true" || fm.venue_verified === true ? 1.0 : 0.7;
+    const trust = provW * venueFactor;
+
+    // Impact dimension
+    const year = parseInt(fm.year as string) || currentYear;
+    const recency = Math.max(0, 1 - (currentYear - year) * 0.15);
+    const citCount = parseFloat(fm.citation_count as string);
+    const corroboration = isNaN(citCount) ? 0.3 : Math.min(citCount / 100, 1.0);
+    const impact = recency * corroboration;
+
+    evidenceScore.set(p.slug, Math.round((0.5 * trust + 0.5 * impact) * 100) / 100);
+  }
+
+  // Concept/synthesis evidence_score = recency-weighted average of source scores
+  for (const p of pages) {
+    if (p.type === "source") continue;
+    if (p.sources.length === 0) { evidenceScore.set(p.slug, 0.3); continue; }
+    let weightedSum = 0, weightSum = 0;
+    for (const src of p.sources) {
+      const srcFm = pageFm.get(src);
+      const srcYear = parseInt(srcFm?.year as string) || currentYear - 2;
+      const recency = Math.max(0.1, 1 - (currentYear - srcYear) * 0.15);
+      const score = evidenceScore.get(src) ?? 0.3;
+      weightedSum += score * recency;
+      weightSum += recency;
+    }
+    evidenceScore.set(p.slug, Math.round((weightSum > 0 ? weightedSum / weightSum : 0.3) * 100) / 100);
+  }
+
   // Build output
   const features: Record<string, any> = {};
   for (const p of pages) {
@@ -431,8 +545,10 @@ function cmdFeatures() {
       in_degree: inDegree.get(p.slug) ?? 0,
       out_degree: outDegree.get(p.slug) ?? 0,
       citation_overlap: overlapObj,
+      adamic_adar: adamicAdarNorm.get(p.slug) ?? {},
       bridge_score: bridgeScore.get(p.slug) ?? 0,
       centrality: centrality.get(p.slug) ?? 0,
+      evidence_score: evidenceScore.get(p.slug) ?? 0.3,
     };
   }
 
@@ -444,10 +560,15 @@ function cmdFeatures() {
   const withOverlap = Object.values(features).filter((f: any) => Object.keys(f.citation_overlap).length > 0).length;
   const avgBridge = Object.values(features).reduce((sum: number, f: any) => sum + f.bridge_score, 0) / pageCount;
 
+  const withAA = Object.values(features).filter((f: any) => Object.keys(f.adamic_adar).length > 0).length;
+
   console.log(`Graph features computed for ${pageCount} pages → ${outPath}`);
   console.log(`  Pages with citation overlap: ${withOverlap}`);
+  console.log(`  Pages with Adamic-Adar neighbors: ${withAA}`);
   console.log(`  Average bridge score: ${avgBridge.toFixed(3)}`);
   console.log(`  Max centrality: ${Math.max(...Object.values(features).map((f: any) => f.centrality)).toFixed(3)}`);
+  const avgEvidence = Object.values(features).reduce((sum: number, f: any) => sum + f.evidence_score, 0) / pageCount;
+  console.log(`  Average evidence score: ${avgEvidence.toFixed(3)}`);
 }
 
 // ── Shared-Concept Community Detection ────────────────────────────────
@@ -611,7 +732,7 @@ function cmdCommunities() {
   }
 
   // Step 5: Build output — assign community IDs and labels
-  const communities: { id: number; label: string; members: string[]; concepts: string[]; size: number }[] = [];
+  const communities: { id: number; label: string; members: string[]; concepts: string[]; size: number; cohesion?: number }[] = [];
   const pageCommunity: Record<string, number> = {};
   let commId = 0;
 
@@ -650,6 +771,41 @@ function cmdCommunities() {
     const old = communities[i].id;
     communities[i].id = i;
     for (const slug of communities[i].members) pageCommunity[slug] = i;
+  }
+
+  // Step 5b: Compute cohesion per community using the same cosine similarity space
+  // cohesion = avg intra-community similarity / max(avg inter-community similarity, 0.01)
+  for (const comm of communities) {
+    const memberIndices = comm.members.map(slug => slugIndex.get(slug)).filter((i): i is number => i !== undefined);
+    if (memberIndices.length < 2) {
+      (comm as any).cohesion = 0;
+      continue;
+    }
+    // Intra-community: average cosine similarity between all pairs within this community
+    let intraSum = 0, intraPairs = 0;
+    for (let a = 0; a < memberIndices.length; a++) {
+      for (let b = a + 1; b < memberIndices.length; b++) {
+        const key = `${Math.min(memberIndices[a], memberIndices[b])},${Math.max(memberIndices[a], memberIndices[b])}`;
+        intraSum += simPairs.get(key) ?? 0;
+        intraPairs++;
+      }
+    }
+    const intraSim = intraPairs > 0 ? intraSum / intraPairs : 0;
+
+    // Inter-community: average similarity between this community's members and nearest other community
+    const memberSet = new Set(memberIndices);
+    let interSum = 0, interPairs = 0;
+    for (const idx of memberIndices) {
+      for (const [key, sim] of simPairs) {
+        const [ki, kj] = key.split(",").map(Number);
+        if ((ki === idx && !memberSet.has(kj)) || (kj === idx && !memberSet.has(ki))) {
+          interSum += sim;
+          interPairs++;
+        }
+      }
+    }
+    const interSim = interPairs > 0 ? interSum / interPairs : 0;
+    (comm as any).cohesion = Math.round((intraSim / Math.max(interSim, 0.01)) * 100) / 100;
   }
 
   // Step 6: Assign concepts and synthesis to communities
@@ -700,8 +856,14 @@ function cmdCommunities() {
   console.log(`  Threshold: ${threshold}, Merges: ${mergeCount}`);
   console.log(`  Total pages assigned: ${Object.keys(pageCommunity).length}`);
   console.log(`\nCommunities (top 10):`);
+  const weakComms = communities.filter(c => c.cohesion !== undefined && c.cohesion < 1.5 && c.size >= 3);
   for (const c of communities.slice(0, 10)) {
-    console.log(`  [${c.id}] ${c.label} (${c.size} sources)`);
+    const cohStr = c.cohesion !== undefined ? ` cohesion=${c.cohesion}` : "";
+    const weak = (c.cohesion !== undefined && c.cohesion < 1.5 && c.size >= 3) ? " ⚠ SPARSE" : "";
+    console.log(`  [${c.id}] ${c.label} (${c.size} sources${cohStr})${weak}`);
+  }
+  if (weakComms.length > 0) {
+    console.log(`\n⚠ ${weakComms.length} sparse communities (cohesion < 1.5, ≥3 members)`);
   }
   console.log(`\nSaved: ${outPath}`);
 }

@@ -1,11 +1,13 @@
 ---
 name: gpt-nightmare-review
 description: Run a hostile external repo review where GPT reads the repository directly via codex exec. Use before major merges, architecture shifts, or when you want adversarial verification.
-argument-hint: [optional: target scope or files]
+argument-hint: [optional: target scope or files] [-- reviewer: codex|oracle-pro]
 allowed-tools: Bash(*), Read, Grep, Glob, Write, Edit
 ---
 
 # GPT Nightmare Review (codex exec)
+
+> **Reviewer**: Default `codex exec` (GPT-5.4 xhigh). Use `-- reviewer: oracle-pro` for GPT-5.4 Pro via Oracle MCP. See `shared/reviewer-routing.md`.
 
 ARIS-style `nightmare` review: GPT reads the repository **independently** via `codex exec`.
 

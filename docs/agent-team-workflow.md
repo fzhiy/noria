@@ -66,12 +66,75 @@ Optional autopilot for long-running batches after metrics prove value.
 
 ---
 
-## Dual-Model Workflow (Optional)
+## NORIA Dual-Model Workflow (Claude Opus 4.6 + GPT-5.4 xhigh)
 
-NORIA supports a dual-model workflow where one model (e.g., Claude) acts as orchestrator and another (e.g., GPT) acts as adversarial reviewer. See `/gpt-nightmare-review` for the review command.
+> Established: 2026-04-08. Active configuration for NORIA development and maintenance.
+
+### Role Assignment
+
+| Role | Model | Access Method | Strengths |
+|---|---|---|---|
+| **Orchestrator** | Claude Opus 4.6 (1M) | Claude Code CLI | Long-form writing, PDF reading, synthesis, wiki compilation, project leadership |
+| **Adversarial Reviewer** | GPT-5.4 xhigh | Codex MCP / codex exec | Independent filesystem verification, hostile testing, code review, architecture audit |
+
+### Workflow Patterns
+
+#### Pattern A: Compile-Review Cycle (standard)
+
+```
+1. Claude: kb-compile / kb-deepen / kb-reflect → writes wiki/
+2. Claude: commit changes
+3. GPT: /gpt-nightmare-review → independent verification
+   - Reads actual files (not Claude's summary)
+   - Checks citation consistency, provenance, metadata
+   - Produces severity-ranked findings
+4. Claude: fixes findings → commit
+5. Repeat if CRITICAL/HIGH findings remain
+```
+
+#### Pattern B: Parallel Analysis
+
+```
+Claude: literature research + source page writing
+GPT (Codex MCP): independent architecture/classification evaluation
+→ Claude merges both analyses
+```
+
+#### Pattern C: Tool Development-Verification
+
+```
+Claude: writes/modifies tools/ code
+GPT (codex exec): independently runs code + validates correctness
+→ Claude fixes issues found
+```
+
+### Trigger Rules
+
+| Event | Action | Model |
+|---|---|---|
+| After every `kb-reflect` | Nightmare review on synthesis quality | GPT |
+| After batch deepen (5+ papers) | Spot-check sec.X citation consistency | GPT |
+| Before architecture changes | Independent feasibility assessment | GPT |
+| New session start | Read previous review findings, prioritize unresolved | Claude |
+| Before merge to main | Full KB nightmare review | GPT |
 
 ### Quality Gates
 
-1. **kb-lint 7/7 PASS** required before any kb-reflect
-2. **Adversarial review** recommended before merge to main
+1. **kb-lint 7/7 PASS** required before any kb-reflect (enforced via UserPromptSubmit hook)
+2. **GPT nightmare review** required before merge to main
 3. **No CRITICAL findings** allowed in final review before merge
+4. **HIGH findings** must have documented justification if not fixed
+
+### Escalation to Three-Model Team (Future)
+
+When GCP $300 trial is utilized:
+- **Gemini 2.5 Pro** (1M context): full-wiki global consistency check, Google Search grounding for venue/code verification
+- Trigger: after dual-model workflow stabilizes and if Gemini finds issues Claude+GPT missed
+- Integration: Vertex AI batch API, not interactive agent
+
+### Communication Protocol
+
+- Claude → GPT: via Codex MCP `prompt` parameter or codex exec prompt files
+- GPT → Claude: via review result files in `outputs/reviews/`
+- Both models: append to `log.md` for audit trail
+- Neither model: directly modifies the other's artifacts without going through the review cycle

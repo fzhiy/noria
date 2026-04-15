@@ -12,11 +12,11 @@ def repo_root() -> Path:
 
 
 def template_root() -> Path:
-    return repo_root() / "templates" / "llm-wiki-agent"
+    return repo_root() / "templates" / "noria-agent"
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Copy the llm-wiki-agent starter into a target repo.")
+    parser = argparse.ArgumentParser(description="Copy the noria-agent starter into a target repo.")
     parser.add_argument("target")
     parser.add_argument("--force", action="store_true")
     return parser
@@ -40,7 +40,7 @@ def main() -> int:
     dst = Path(args.target).expanduser().resolve()
     dst.mkdir(parents=True, exist_ok=True)
     copy_tree(template_root(), dst, args.force)
-    print(f"Copied llm-wiki-agent starter into {dst}")
+    print(f"Copied noria-agent starter into {dst}")
     return 0
 
 

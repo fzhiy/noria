@@ -28,7 +28,7 @@ const SIGNAL_INDEX = resolve(KB_DIR, "signal-index.jsonl");
 interface FeedbackEntry {
   filename: string;
   title: string;
-  feedback_kind: "gap" | "accuracy" | "insight";
+  feedback_kind: "gap" | "accuracy" | "insight" | "save";
   review_status: string;
   answer_status: string;
   wiki_pages: string[];
@@ -152,13 +152,57 @@ function extractSection(content: string, heading: string): string {
   return m ? m[1].trim() : "";
 }
 
+// ── Service-index join (skip files actively being processed or already completed) ──
+// Design: `pending` service-index entries are NOT skipped — triage and /kb-service
+// are parallel paths. Triage runs independently. Only skip: terminal states
+// (serviced/review_failed/unresolved) and active leases (claimed/review_passed).
+const TERMINAL_STATES = new Set(["serviced", "review_failed", "unresolved"]);
+
+function loadProcessedFiles(): Set<string> {
+  const indexPath = resolve(KB_DIR, "service-index.jsonl");
+  if (!existsSync(indexPath)) return new Set();
+
+  const lines = readFileSync(indexPath, "utf-8").trim().split("\n").filter(Boolean);
+  // Step 1: build request_id → feedback_file map (from rows that carry feedback_file)
+  const feedbackMap = new Map<string, string>();
+  // Step 2: build request_id → latest state
+  const latestStatus = new Map<string, { status: string; lease_expires?: string }>();
+
+  for (const line of lines) {
+    try {
+      const rec = JSON.parse(line);
+      if (rec.request_id && rec.feedback_file) feedbackMap.set(rec.request_id, rec.feedback_file);
+      if (rec.request_id && rec.status) latestStatus.set(rec.request_id, { status: rec.status, lease_expires: rec.lease_expires });
+    } catch { /* skip malformed lines */ }
+  }
+
+  // Step 3: skip terminal states + active leases
+  const processed = new Set<string>();
+  const now = Date.now();
+  for (const [reqId, state] of latestStatus) {
+    const file = feedbackMap.get(reqId);
+    if (!file) continue;
+
+    if (TERMINAL_STATES.has(state.status)) {
+      processed.add(file);
+    } else if ((state.status === "claimed" || state.status === "review_passed")
+               && state.lease_expires && new Date(state.lease_expires).getTime() > now) {
+      processed.add(file); // active lease — still being processed
+    }
+    // expired lease → don't add to processed → feedback re-enters triage pool
+  }
+  return processed;
+}
+
 // ── Load feedback entries ─────────────────────────────────────────────
 function loadFeedback(includeTriaged: boolean): FeedbackEntry[] {
   if (!existsSync(QUERIES_DIR)) return [];
 
+  const processed = loadProcessedFiles();
   const entries: FeedbackEntry[] = [];
   for (const f of readdirSync(QUERIES_DIR)) {
     if (!f.endsWith(".md") || f === ".gitkeep") continue;
+    if (processed.has(f)) continue; // skip files already in service pipeline
 
     const content = readFileSync(resolve(QUERIES_DIR, f), "utf-8");
     const fm = parseFrontmatter(content);
@@ -223,7 +267,7 @@ function extractGapThemes(gaps: FeedbackEntry[]): Map<string, FeedbackEntry[]> {
 // ── Build triage report ───────────────────────────────────────────────
 function buildReport(entries: FeedbackEntry[]): TriageReport {
   const today = new Date().toISOString().slice(0, 10);
-  const by_kind: Record<string, FeedbackEntry[]> = { gap: [], accuracy: [], insight: [] };
+  const by_kind: Record<string, FeedbackEntry[]> = { gap: [], accuracy: [], insight: [], save: [] };
   for (const e of entries) {
     (by_kind[e.feedback_kind] ??= []).push(e);
   }
@@ -280,6 +324,20 @@ function buildReport(entries: FeedbackEntry[]): TriageReport {
     recommendations.push(`SYNTHESIS: ${insight_candidates.length} insight(s) with ≥2 citekeys — candidates for /kb-reflect`);
   }
 
+  // Flag save requests — Q&A pairs worth promoting to concept/synthesis
+  const saves = by_kind.save ?? [];
+  if (saves.length > 0) {
+    // Cluster saves by most-referenced wiki pages
+    const pageCounts = new Map<string, number>();
+    for (const s of saves) {
+      for (const p of s.wiki_pages) pageCounts.set(p, (pageCounts.get(p) ?? 0) + 1);
+    }
+    const topPage = [...pageCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+    if (topPage) {
+      recommendations.push(`PROMOTE: ${saves.length} save request(s) — consider updating ${topPage[0]} or creating new concept page`);
+    }
+  }
+
   return { date: today, total: entries.length, by_kind, gap_themes, accuracy_targets, insight_candidates, recommendations };
 }
 
@@ -294,6 +352,7 @@ function renderReport(report: TriageReport): string {
     `| gap | ${(report.by_kind.gap ?? []).length} |`,
     `| accuracy | ${(report.by_kind.accuracy ?? []).length} |`,
     `| insight | ${(report.by_kind.insight ?? []).length} |`,
+    `| save | ${(report.by_kind.save ?? []).length} |`,
     "",
   ];
 

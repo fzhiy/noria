@@ -7,6 +7,7 @@
  *   npx tsx tools/kb-lint.ts [--fix] [--json] [--semantic]
  */
 import { readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve, dirname, relative, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -141,23 +142,84 @@ function ckFrontmatter(ps: string[]): Issue[] {
   return iss;
 }
 
+// ── Levenshtein edit distance (for --fix slug repair) ─────────────────
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) => {
+    const row = new Array(n + 1).fill(0);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 1; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
 // ── Check 2: Wikilinks ────────────────────────────────────────────────
-function ckWikilinks(ps: string[]): Issue[] {
+function ckWikilinks(ps: string[], fix: boolean): Issue[] {
   const iss: Issue[] = [];
-  let ok = 0;
+  let ok = 0, fixed = 0;
+  // Build slug inventory for fix mode
+  const allSlugs: string[] = [];
+  if (fix) {
+    for (const d of DIRS) {
+      if (!existsSync(d)) continue;
+      for (const f of readdirSync(d)) {
+        if (f.endsWith(".md")) allSlugs.push(f.replace(/\.md$/, ""));
+      }
+    }
+  }
+
   const all = [...ps];
   if (existsSync(INDEX)) all.push(INDEX);
   for (const p of all) {
     const lines = readFileSync(p, "utf-8").split("\n");
+    let modified = false;
     for (let n = 0; n < lines.length; n++) {
       for (const m of allMatches(WL_RE, lines[n])) {
         const slug = m[1].trim();
-        if (slugOk(slug)) ok++;
-        else iss.push({ level: "FAIL", check: "wikilinks", file: rel(p), line: n + 1, msg: `broken link: [[${slug}]]` });
+        if (slugOk(slug)) { ok++; continue; }
+
+        if (fix) {
+          // Find nearest slug by Levenshtein distance ≤ 2, must be unique match
+          const candidates = allSlugs
+            .map(s => ({ slug: s, dist: levenshtein(slug, s) }))
+            .filter(c => c.dist <= 2)
+            .sort((a, b) => a.dist - b.dist);
+          if (candidates.length === 1 || (candidates.length > 1 && candidates[0].dist < candidates[1].dist)) {
+            const replacement = candidates[0].slug;
+            // Handle both [[slug]] and [[slug|label]] forms via regex
+            const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            lines[n] = lines[n].replace(new RegExp(`\\[\\[${escaped}(\\|[^\\]]+)?\\]\\]`, "g"),
+              (match, alias) => alias ? `[[${replacement}${alias}]]` : `[[${replacement}]]`);
+            iss.push({ level: "WARN", check: "wikilinks", file: rel(p), line: n + 1,
+              msg: `auto-fixed: [[${slug}]] → [[${replacement}]] (dist=${candidates[0].dist})` });
+            modified = true;
+            fixed++;
+          } else {
+            // No unique match: strip to plain text (preserving label if alias form)
+            const escaped = slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            lines[n] = lines[n].replace(new RegExp(`\\[\\[${escaped}\\|([^\\]]+)\\]\\]`, "g"), "$1");
+            lines[n] = lines[n].replace(new RegExp(`\\[\\[${escaped}\\]\\]`, "g"), slug);
+            iss.push({ level: "WARN", check: "wikilinks", file: rel(p), line: n + 1,
+              msg: `auto-fixed: [[${slug}]] → plain text (no unique match)` });
+            modified = true;
+            fixed++;
+          }
+        } else {
+          iss.push({ level: "FAIL", check: "wikilinks", file: rel(p), line: n + 1, msg: `broken link: [[${slug}]]` });
+        }
       }
     }
+    if (modified) writeFileSync(p, lines.join("\n"), "utf-8");
   }
-  if (ok) iss.unshift({ level: "PASS", check: "wikilinks", file: "", line: 0, msg: `${ok} wikilinks resolved` });
+  if (ok) iss.unshift({ level: "PASS", check: "wikilinks", file: "", line: 0, msg: `${ok} wikilinks resolved${fixed ? `, ${fixed} auto-fixed` : ""}` });
   return iss;
 }
 
@@ -211,23 +273,71 @@ function ckCitations(ps: string[], fix: boolean): Issue[] {
 }
 
 // ── Check 4: Orphans ──────────────────────────────────────────────────
-function ckOrphans(): Issue[] {
+function ckOrphans(fix: boolean): Issue[] {
   const iss: Issue[] = [];
   if (!existsSync(INDEX)) return [{ level: "FAIL", check: "orphans", file: rel(INDEX), line: 0, msg: "index.md not found" }];
-  const linked = new Set(allMatches(WL_RE, readFileSync(INDEX, "utf-8")).map(m => m[1].trim()));
-  const orphs: string[] = [];
+  const indexContent = readFileSync(INDEX, "utf-8");
+  const linked = new Set(allMatches(WL_RE, indexContent).map(m => m[1].trim()));
+  const orphs: { file: string; slug: string; dir: string }[] = [];
   for (const d of [SRC_DIR, CON_DIR, SYN_DIR]) {
     if (!existsSync(d)) continue;
+    const dirName = d === SRC_DIR ? "sources" : d === CON_DIR ? "concepts" : "synthesis";
     for (const f of readdirSync(d).filter(f => f.endsWith(".md") && f !== ".gitkeep").sort()) {
-      if (!linked.has(f.replace(/\.md$/, ""))) orphs.push(rel(resolve(d, f)));
+      const slug = f.replace(/\.md$/, "");
+      if (!linked.has(slug)) orphs.push({ file: rel(resolve(d, f)), slug, dir: dirName });
     }
   }
-  for (const o of orphs) iss.push({ level: o.includes("synthesis") ? "WARN" : "FAIL", check: "orphans", file: o, line: 0, msg: "not linked from index.md" });
+
+  if (fix && orphs.length > 0) {
+    // Add orphans to index.md in the appropriate section
+    const lines = indexContent.split("\n");
+    const added: string[] = [];
+    for (const o of orphs) {
+      if (o.dir === "synthesis") continue; // synthesis orphans are WARN, skip
+      // Find the section header for this type and append after last entry
+      const sectionRe = o.dir === "sources" ? /^## Sources/i : /^## Concepts/i;
+      let insertIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (sectionRe.test(lines[i])) {
+          // Find end of this section (next ## or EOF)
+          let j = i + 1;
+          while (j < lines.length && !lines[j].startsWith("## ")) j++;
+          insertIdx = j - 1;
+          // Back up past empty lines
+          while (insertIdx > i && lines[insertIdx].trim() === "") insertIdx--;
+          insertIdx++;
+          break;
+        }
+      }
+      if (insertIdx >= 0) {
+        lines.splice(insertIdx, 0, `- [[${o.slug}]]`);
+        added.push(o.slug);
+      }
+    }
+    if (added.length > 0) {
+      writeFileSync(INDEX, lines.join("\n"), "utf-8");
+      for (const slug of added) {
+        iss.push({ level: "WARN", check: "orphans", file: "index.md", line: 0,
+          msg: `auto-fixed: added [[${slug}]] to index.md` });
+      }
+    }
+    // Re-check after fix
+    const newLinked = new Set(allMatches(WL_RE, readFileSync(INDEX, "utf-8")).map(m => m[1].trim()));
+    const remaining = orphs.filter(o => !newLinked.has(o.slug));
+    for (const o of remaining) {
+      iss.push({ level: o.dir === "synthesis" ? "WARN" : "FAIL", check: "orphans", file: o.file, line: 0, msg: "not linked from index.md" });
+    }
+  } else {
+    for (const o of orphs) {
+      iss.push({ level: o.dir === "synthesis" ? "WARN" : "FAIL", check: "orphans", file: o.file, line: 0, msg: "not linked from index.md" });
+    }
+  }
+
   let total = 0;
   for (const d of [SRC_DIR, CON_DIR, SYN_DIR]) {
     if (existsSync(d)) total += readdirSync(d).filter(f => f.endsWith(".md") && f !== ".gitkeep").length;
   }
-  const ok = total - orphs.length;
+  const ok = total - orphs.filter(o => !fix || o.dir === "synthesis").length;
   if (ok > 0) iss.unshift({ level: "PASS", check: "orphans", file: "", line: 0, msg: `${ok} pages linked from index` });
   return iss;
 }
@@ -495,6 +605,51 @@ function ckSynthesisGovernance(ps: string[]): Issue[] {
   return iss;
 }
 
+// ── Check 10: Stale Compilation ──────────────────────────────────────
+function ckStaleCompilation(): Issue[] {
+  const iss: Issue[] = [];
+  const manifestPath = resolve(ROOT, ".kb", "manifest.json");
+  if (!existsSync(manifestPath)) return iss;
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+  const files: Record<string, any> = manifest.files ?? {};
+  let fresh = 0, stale = 0;
+  let noHash = 0, missing = 0;
+  for (const [rawPath, entry] of Object.entries(files) as [string, any][]) {
+    if (entry.status !== "compiled") continue;
+    if (!entry.source_hash) {
+      noHash++;
+      continue; // count but don't block — backfill with kb-stale-check.ts --update
+    }
+    const fullPath = resolve(ROOT, rawPath);
+    if (!existsSync(fullPath)) {
+      missing++;
+      continue;
+    }
+    const content = readFileSync(fullPath);
+    const hash = "sha256:" + createHash("sha256").update(content).digest("hex");
+    if (hash !== entry.source_hash) {
+      stale++;
+      iss.push({ level: "WARN", check: "stale_compilation", file: rawPath, line: 0,
+        msg: `modified since compilation (${entry.compiled_at}) — recompile with /kb-compile` });
+    } else {
+      fresh++;
+    }
+  }
+  if (noHash > 0) {
+    iss.push({ level: "WARN", check: "stale_compilation", file: "", line: 0,
+      msg: `${noHash} compiled entries lack source_hash — run: npx tsx tools/kb-stale-check.ts --update` });
+  }
+  if (missing > 0) {
+    iss.push({ level: "WARN", check: "stale_compilation", file: "", line: 0,
+      msg: `${missing} compiled entries have missing raw files` });
+  }
+  if (stale === 0) {
+    iss.unshift({ level: "PASS", check: "stale_compilation", file: "", line: 0,
+      msg: `${fresh} compiled files up-to-date` });
+  }
+  return iss;
+}
+
 // ── Check registry ────────────────────────────────────────────────────
 const CHECKS: CheckDef[] = [
   ["Frontmatter Validation", "frontmatter"],
@@ -506,6 +661,7 @@ const CHECKS: CheckDef[] = [
   ["Duplicate Detection", "duplicates"],
   ["Social-Lead Quarantine", "social_lead_quarantine"],
   ["Synthesis Governance", "synthesis_governance"],
+  ["Stale Compilation", "stale_compilation"],
 ];
 
 const SEMANTIC_CHECKS: CheckDef[] = [
@@ -598,14 +754,15 @@ function main(): number {
   const ps = pages();
   const iss: Issue[] = [];
   iss.push(...ckFrontmatter(ps));
-  iss.push(...ckWikilinks(ps));
+  iss.push(...ckWikilinks(ps, fix));
   iss.push(...ckCitations(ps, fix));
-  iss.push(...ckOrphans());
+  iss.push(...ckOrphans(fix));
   iss.push(...ckProvenance(ps));
   iss.push(...ckOutputsQuarantine(ps));
   iss.push(...ckDuplicates());
   iss.push(...ckSocialLeadQuarantine(ps));
   iss.push(...ckSynthesisGovernance(ps));
+  iss.push(...ckStaleCompilation());
 
   let extra: CheckDef[] | undefined;
   if (semantic) {

@@ -40,6 +40,7 @@ interface PageMeta {
   hasSectionCitations: boolean;
   redirect?: string;
   lastReviewed?: string;
+  superseded_by?: string[];
 }
 
 function loadPages(): PageMeta[] {
@@ -63,6 +64,7 @@ function loadPages(): PageMeta[] {
         hasSectionCitations: /\[source:.*sec\./i.test(content),
         redirect: fm.redirect ? String(fm.redirect) : undefined,
         lastReviewed: fm.last_reviewed ? String(fm.last_reviewed) : undefined,
+        superseded_by: Array.isArray(fm.superseded_by) ? fm.superseded_by : undefined,
       });
     }
   }
@@ -106,7 +108,7 @@ function loadSignals(): Signal[] {
 
 // ── Gap detectors ────────────────────────────────────────────────────
 interface Gap {
-  type: "demand" | "depth" | "structural" | "frontier" | "audit" | "synthesis-review" | "synthesis-update";
+  type: "demand" | "depth" | "structural" | "frontier" | "audit" | "synthesis-review" | "synthesis-update" | "community-sparse" | "surprise-connection";
   severity: "HIGH" | "MEDIUM" | "LOW";
   description: string;
   action: string;
@@ -258,6 +260,20 @@ function detectFrontierGaps(pages: PageMeta[]): Gap[] {
     const allLinked = [...new Set([...linkedSources, ...sourcePages])];
 
     if (allLinked.length === 0) continue;
+
+    // Check if all sources are superseded
+    const nonSuperseded = allLinked.filter(p => !p.superseded_by || p.superseded_by.length === 0);
+    if (nonSuperseded.length === 0 && allLinked.length > 0) {
+      gaps.push({
+        type: "frontier",
+        severity: "HIGH",
+        description: `${concept.slug}: all ${allLinked.length} sources have been superseded — needs fresh evidence`,
+        action: `/kb-sync s2 "${concept.title}" --limit 5`,
+        anchors: [concept.slug, ...allLinked.map(p => p.slug)],
+      });
+      continue;
+    }
+
     const newestYear = Math.max(...allLinked.map(p => p.year).filter(y => y > 0));
     if (newestYear > 0 && newestYear < currentYear - 1) {
       gaps.push({
@@ -348,6 +364,68 @@ function detectSynthesisUpdate(pages: PageMeta[], relations: Relation[]): Gap[] 
   return gaps;
 }
 
+// ── Community-Sparse Gap ─────────────────────────────────────────────
+function detectCommunitySparseness(): Gap[] {
+  const gaps: Gap[] = [];
+  const commPath = resolve(KB, "communities.json");
+  if (!existsSync(commPath)) return gaps;
+  const data = JSON.parse(readFileSync(commPath, "utf-8"));
+  for (const comm of data.communities ?? []) {
+    if (comm.cohesion !== undefined && comm.cohesion < 1.5 && comm.size >= 3) {
+      gaps.push({
+        type: "community-sparse",
+        severity: comm.cohesion < 1.2 ? "HIGH" : "MEDIUM",
+        description: `Community "${comm.label}" (${comm.size} sources) has weak internal cohesion (${comm.cohesion})`,
+        action: `/kb-sync s2 "${comm.concepts?.[0] ?? comm.label}" --limit 5`,
+        anchors: comm.concepts ?? [],
+      });
+    }
+  }
+  return gaps;
+}
+
+// ── Surprise-Connection Gap ──────────────────────────────────────────
+function detectSurpriseConnections(): Gap[] {
+  const gaps: Gap[] = [];
+  const commPath = resolve(KB, "communities.json");
+  const featPath = resolve(KB, "graph-features.json");
+  if (!existsSync(commPath) || !existsSync(featPath)) return gaps;
+  const commData = JSON.parse(readFileSync(commPath, "utf-8"));
+  const features = JSON.parse(readFileSync(featPath, "utf-8"));
+  const pageCommunity: Record<string, number> = commData.page_community ?? {};
+
+  const relations = loadRelations();
+  // Find top cross-community wikilink edges by surprise score
+  const surprises: { source: string; target: string; surprise: number }[] = [];
+  for (const r of relations) {
+    if (r.type !== "wikilink") continue;
+    const srcComm = pageCommunity[r.source];
+    const tgtComm = pageCommunity[r.target];
+    if (srcComm === undefined || tgtComm === undefined || srcComm === tgtComm) continue;
+    const srcType = features[r.source]?.type ?? "unknown";
+    const tgtType = features[r.target]?.type ?? "unknown";
+    const type_diff = srcType !== tgtType ? 1.0 : 0.5;
+    const srcCent = features[r.source]?.centrality ?? 0;
+    const tgtCent = features[r.target]?.centrality ?? 0;
+    const contrast = Math.min(Math.log2(1 + Math.max(srcCent, tgtCent)) / Math.log2(1 + Math.min(srcCent, tgtCent) + 0.01), 5.0);
+    const surprise = type_diff * contrast;
+    if (surprise > 2.0) surprises.push({ source: r.source, target: r.target, surprise });
+  }
+  surprises.sort((a, b) => b.surprise - a.surprise);
+
+  // Report top 5 as LOW gaps (these are opportunities, not problems)
+  for (const s of surprises.slice(0, 5)) {
+    gaps.push({
+      type: "surprise-connection",
+      severity: "LOW",
+      description: `Surprising cross-community link: ${s.source} ↔ ${s.target} (surprise=${s.surprise.toFixed(1)})`,
+      action: `/kb-reflect (explore connection between ${s.source} and ${s.target})`,
+      anchors: [s.source, s.target],
+    });
+  }
+  return gaps;
+}
+
 // ── Main ─────────────────────────────────────────────────────────────
 function main() {
   const argv = process.argv.slice(2);
@@ -372,6 +450,8 @@ function main() {
   if (!typeFilter || typeFilter === "audit") allGaps.push(...detectAuditGaps(signals));
   if (!typeFilter || typeFilter === "synthesis-review") allGaps.push(...detectSynthesisReview(pages));
   if (!typeFilter || typeFilter === "synthesis-update") allGaps.push(...detectSynthesisUpdate(pages, relations));
+  if (!typeFilter || typeFilter === "community-sparse") allGaps.push(...detectCommunitySparseness());
+  if (!typeFilter || typeFilter === "surprise-connection") allGaps.push(...detectSurpriseConnections());
 
   // Sort by severity
   const sevOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 };
