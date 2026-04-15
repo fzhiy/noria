@@ -17,7 +17,7 @@ jobs:
         run: npm install --no-save tsx typescript @types/node
 
       - name: TypeScript type-check
-        run: npx tsc --noEmit --esModuleInterop --module nodenext --moduleResolution nodenext --target es2022 tools/*.ts
+        run: npx tsc
 
       - name: Lint demo wiki pages
         run: npx tsx tools/kb-lint.ts
