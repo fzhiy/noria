@@ -42,7 +42,16 @@ done
 # Step 3: Scan for private patterns
 echo "[3/4] Scanning for private patterns..."
 LEAKS=0
-for pattern in "fy274" "exeter" "144\.173\." "/mnt/d/" "provewiki2026" "/home/fy274/"; do
+# Load patterns from private repo's .gitleaks.toml (not shipped in release)
+# Add your private patterns to PRIVATE_PATTERNS_FILE or set them here
+PRIVATE_PATTERNS_FILE="${PRIVATE_REPO}/.noria-private-patterns"
+if [ -f "$PRIVATE_PATTERNS_FILE" ]; then
+  mapfile -t PATTERNS < "$PRIVATE_PATTERNS_FILE"
+else
+  echo "  WARNING: $PRIVATE_PATTERNS_FILE not found. Create it with one pattern per line."
+  PATTERNS=()
+fi
+for pattern in "${PATTERNS[@]}"; do
   FOUND=$(grep -rn "$pattern" "$RELEASE_DIR" --include="*.md" --include="*.ts" --include="*.py" --include="*.sh" --include="*.json" 2>/dev/null | grep -v ".git/" | grep -v "node_modules/" || true)
   if [ -n "$FOUND" ]; then
     echo "  LEAK: pattern '$pattern' found:"
