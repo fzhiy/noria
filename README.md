@@ -38,8 +38,8 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design, directory str
 ### Setup
 
 ```bash
-git clone https://github.com/your-username/llm-wiki.git
-cd llm-wiki
+git clone https://github.com/fzhiy/noria.git
+cd noria
 
 # Start working with Claude Code
 claude

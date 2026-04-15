@@ -43,3 +43,7 @@ tools/wechat/data/
 wiki/*.canvas
 wiki/canvas/
 nohup.out
+
+# /implement intermediate files (specs, logs)
+.ai/
+.gitleaks.toml
