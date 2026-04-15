@@ -47,3 +47,10 @@ nohup.out
 # /implement intermediate files (specs, logs)
 .ai/
 .gitleaks.toml
+
+# Review loop artifacts
+AUTO_REVIEW.md
+REVIEW_STATE.json
+
+# Runtime state (user-specific)
+.kb/manifest.json

@@ -1,7 +1,7 @@
 ---
 
 name: kb-compile
-description: Compile unprocessed raw/ files into wiki/sources/ and wiki/concepts/. Updates index.md. Core knowledge pipeline.
+description: Compile unprocessed raw/ files into inbox/ for human approval. Core knowledge pipeline.
 argument-hint: [optional: specific file in raw/ to compile] [-- effort: lite|standard|extended|heavy|beast]
 allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 ---
@@ -10,9 +10,10 @@ allowed-tools: Bash(*), Read, Write, Edit, Grep, Glob
 
 
 
-# KB Compile: raw/ → wiki/
+# KB Compile: raw/ → inbox/ (human approval required)
 
-Process uncompiled files from `raw/` into wiki pages with proper provenance.
+Process uncompiled files from `raw/` into inbox pages with proper provenance.
+Pages land in `inbox/` and require human approval via `noria-queue approve` before entering `wiki/`.
 
 ## Context: $ARGUMENTS
 
@@ -35,9 +36,10 @@ If `$ARGUMENTS` specifies a file, only compile that file.
 
 **A. Read the raw file completely.**
 
-**B. Create source page** at `wiki/sources/<slug>.md`:
+**B. Create source page** at `inbox/sources/<slug>.md` (NOT wiki/):
 - `type: source`
 - `provenance: source-derived`
+- `verification_status: unreviewed`
 - Include: summary, key points with assertion-level citations `[source: citekey, location]`, metadata
 - Slug format: `<firstauthor><year>-<keyword>` for papers, descriptive slug for notes/web
 - If the raw file has `collections: [Name1, Name2]` in frontmatter, add `collection:kebab-name` tags to the source page's `tags:` field (e.g., `collections: [LLM Safety]` → `tags: [collection:llm-safety]`).
@@ -53,20 +55,29 @@ If `$ARGUMENTS` specifies a file, only compile that file.
   - `code_available:` — true/false/unknown
   - `venue_verified:` — run `npx tsx tools/venue-verify.ts <citekey> --dry-run` for `top-conf`/`top-journal` papers. If S2/DBLP confirm the venue, set `true`. If unverified, set `false` and note the manual check URL in the commit message.
   - `venue_verification_source:` — `s2` / `dblp` / `manual` / `auto-unverified`
+- **Claims frontmatter** (REQUIRED — pages without claims are blocked from promotion):
+  ```yaml
+  claims:
+    - text: "short claim statement"
+      citekey: <slug>
+      locator: "sec.X, table.Y"
+      type: empirical_result | method_claim | definition | comparison
+      confidence: high | medium | low
+  ```
+  Extract 3-8 key claims per source. Each claim MUST have `text` and `citekey`.
 
 **C. Identify and update concept pages:**
 - Extract 3-7 key concepts from the source.
 - For each concept:
   - Check if `wiki/concepts/<concept-slug>.md` exists.
-  - If YES: read existing page, append new information with source citation. Preserve existing content. If contradictions found, add a `## Contradictions` section.
-  - If NO: create new page with `type: concept`, `provenance: llm-derived`, citing this source.
+  - If YES: create `inbox/concepts/<concept-slug>.md` as an update page. Do NOT modify wiki/ directly. The human reviewer will merge during approval.
+  - Check if `inbox/concepts/<concept-slug>.md` exists (pending update). If YES: merge into the existing inbox draft.
+  - If NO (neither wiki/ nor inbox/): create new page at `inbox/concepts/<concept-slug>.md` with `type: concept`, `provenance: llm-derived`, `verification_status: unreviewed`, citing this source.
   - When creating or updating concept pages, consider adding an `## Open Questions` section listing 1-3 unresolved questions from the literature. These are consumed by external tools like `/idea-creator` for research gap discovery. Only add when the source material reveals genuine open problems.
 - Use `[[wikilinks]]` to cross-reference between pages.
 
-**D. Update `wiki/index.md`:**
-- Add entry under `## Sources`: `- [[Source Slug]] — one-line summary`
-- Add/update entries under `## Concepts` for new or updated concepts.
-- Replace placeholder text (`_No sources compiled yet._` etc.) on first compile.
+**D. Do NOT update `wiki/index.md` directly.**
+Index is updated automatically when pages are approved via `noria-queue approve`.
 
 **E. Update `.kb/manifest.json`:**
 ```json
@@ -89,7 +100,7 @@ If `$ARGUMENTS` specifies a file, only compile that file.
 [2026-04-06 12:00] [COMPILE] <source-slug>: +1 source, +N concepts (new: X, updated: Y)
 ```
 
-Git commit with message: `compile: <source-slug> (+1 source, +N concepts)`
+Git commit with message: `[noria-inbox] <source-slug> proposed by kb-compile`
 
 ## Key Rules
 

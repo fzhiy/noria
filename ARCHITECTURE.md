@@ -106,7 +106,8 @@ Every pipeline step follows the progressive reading pattern:
 |---|---|---|---|
 | 1 | `/kb-sync` | Zotero/arXiv/S2/Twitter/WeChat/GitHub → raw/ | Multi-platform, relevance-filtered |
 | 2 | `/kb-ingest` | Stage URLs/notes/PDFs → raw/ | Manual staging |
-| 3 | `/kb-compile` | raw/ → wiki/sources/ + concepts/ + index.md | Manifest-gated, idempotent |
+| 3 | `/kb-compile` | raw/ → inbox/ (sources + concepts, with claims) | Manifest-gated, human approval required |
+| 3b | `noria-queue` | inbox/ → wiki/ (approve/reject/list) | Human gate, archives previous version on update |
 | 4 | `/kb-lint` | 7-check health gate on wiki/ | **Mandatory** before synthesis (enforced by hook) |
 | 5 | `/kb-ask` | Query → synthesized answer → outputs/ | Query-derived, never enters wiki/ |
 
@@ -199,7 +200,7 @@ Skill files in `.claude/commands/`, loaded on demand (not in CLAUDE.md):
 ## Directory Structure
 
 ```
-llm-wiki/
+noria/
 ├── CLAUDE.md              # Lean agent instructions (~71 lines)
 ├── schema.md              # Full wiki schema + provenance rules
 ├── ARCHITECTURE.md        # This file

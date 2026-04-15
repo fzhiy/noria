@@ -1,11 +1,11 @@
 ---
 name: wiki-help
-description: Show llm-wiki project overview, architecture, commands, and current status. The self-documenting entry point for new users and agents.
+description: Show NORIA project overview, architecture, commands, and current status. The self-documenting entry point for new users and agents.
 argument-hint: [--quick | --commands | --status | --workflow | --provenance]
 allowed-tools: Bash(*), Read, Grep, Glob
 ---
 
-# LLM Wiki Help
+# NORIA Wiki Help
 
 Display project overview based on `$ARGUMENTS`:
 
@@ -23,7 +23,7 @@ Display project overview based on `$ARGUMENTS`:
 Print this:
 
 > **NORIA** is a provenance-first research knowledge base maintained by Claude Code with Obsidian as the human frontend.
-> Papers flow from Zotero/arXiv/Semantic Scholar → `raw/` → `/kb-compile` → `wiki/` (sources + concepts + synthesis).
+> Papers flow from Zotero/arXiv/Semantic Scholar → `raw/` → `/kb-compile` → `inbox/` → [human approve] → `wiki/` (sources + concepts + synthesis).
 > Every claim is citation-traced, every page has provenance, and `/kb-lint` gates all synthesis.
 > The wiki serves as a cross-project knowledge accumulation layer accessible via QMD MCP, JSONL export, or topic bundles.
 
@@ -77,7 +77,8 @@ Print this table:
 | **Sync** | `/kb-sync` | Sync Zotero, arXiv, or Semantic Scholar into raw/ |
 | **Ingest** | `/kb-ingest` | Stage URLs, notes, documents into raw/ |
 | **Import** | `/kb-import` | Import Obsidian/markdown notes into raw/imports/ |
-| **Compile** | `/kb-compile` | raw/ → wiki/sources/ + wiki/concepts/ + index.md |
+| **Compile** | `/kb-compile` | raw/ → inbox/ (human approval required before wiki/) |
+| **Approve** | `noria-queue` | inbox/ → wiki/ (approve/reject/list pending pages) |
 | **Lint** | `/kb-lint` | Deterministic 7-check health gate (must pass before reflect) |
 | **Query** | `/kb-ask` | Answer questions from wiki (output to outputs/, never wiki/) |
 | **Synthesize** | `/kb-reflect` | Generate cross-cutting synthesis articles (post-lint) |

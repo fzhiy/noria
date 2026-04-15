@@ -26,8 +26,7 @@ npx tsx tools/chatgpt-research-agent.ts auto-loop [--max-rounds 5] [--max-gaps 3
 | Layer | Method | When Used |
 |---|---|---|
 | L1 Codex CLI | `codex exec` via `runCodexExec()` | All effort levels (`think` mode and `auto-loop`) |
-| L2 Playwright | private Playwright driver at `~/.local/noria-private/` (if available) | Auto-detected; used instead of codex CLI when present |
-| L3 Manual | Generate prompt → paste into ChatGPT Web → save output → `parse` mode | `manual` mode, or when web search is needed |
+| L2 Manual | Generate prompt → paste into ChatGPT Web → save output → `parse` mode | `manual` mode, or when web search is needed |
 
 ## Effort Routing
 

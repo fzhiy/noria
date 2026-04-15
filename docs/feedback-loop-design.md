@@ -78,17 +78,17 @@ This is already governance in CLAUDE.md but the Hermes analogy reinforces why: i
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                   Remote Research Machine                │
-│  Claude Code / Codex queries NORIA via MCP          │
+│                Remote Research Machine                   │
+│  Claude Code / Codex queries NORIA via MCP              │
 │                                                         │
-│  search("ui drift") → wiki results                      │
+│  search("topic") → wiki results                        │
 │  submit_feedback(gap, ...) → append to outputs/queries/ │
 └──────────────┬──────────────────────────────────────────┘
-               │ SSH reverse tunnel (port 3849)
+               │ MCP connection (SSH tunnel or localhost)
 ┌──────────────▼──────────────────────────────────────────┐
-│             NORIA Host (WSL2)                        │
+│                    NORIA Host                           │
 │                                                         │
-│  noria-mcp-server.py                                │
+│  noria-mcp-server.py                                    │
 │  ├── search   → reads wiki/                             │
 │  ├── get      → reads wiki/                             │
 │  └── submit_feedback → writes outputs/queries/ ONLY     │
